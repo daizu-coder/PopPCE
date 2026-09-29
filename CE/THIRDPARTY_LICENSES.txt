@@ -1,0 +1,449 @@
+PopPCE (Windows CE port of NitroGrafx) - Third-party licenses
+==============================================================
+
+PopPCE is an unofficial, non-commercial port of NitroGrafx. It is not an
+official NitroGrafx release, and the original author is not involved.
+See CE/LICENSING.md for how PopPCE itself is licensed; PopPCE's own code
+(listed there) is MIT, see CE/LICENSE.
+
+This file lists the third-party components in the PopPCE sources and in
+AppMain.exe, with their copyright notices and license texts.
+
+
+NitroGrafx, ARMH6280, PCEPSG
+----------------------------
+Upstream: https://github.com/FluBBaOfWard/NitroGrafx
+  (ARMH6280: https://github.com/FluBBaOfWard/ARMH6280, a submodule)
+Copyright (c) 2003-2026 Fredrik Ahlström. All rights reserved.
+
+There is no LICENSE file. The author stated his conditions in
+https://github.com/FluBBaOfWard/NitroGrafx/issues/20 (2026-08-12):
+
+  "My idea of a license is kind of "do what you want" but don't
+  impersonate my releases, no commercial use."
+
+PopPCE uses these files under those two conditions: it does not present
+itself as an official NitroGrafx release, and it is not used
+commercially. The upstream files are used unchanged (the Windows CE
+changes are applied at build time by CE/core/cefix.sed), and their
+copyright notices are kept. CE/core/GfxCE.s is based on source/Gfx.s and
+keeps its notice. ARMH6280's README states that much of its code is
+derived from PocketNES, started by Loopy.
+
+source/cueparser/timecode.c and timecode.h are in the upstream
+repository but are not built into PopPCE.
+
+
+Shared (NDS_Shared)
+-------------------
+Upstream: https://github.com/FluBBaOfWard/NDS_Shared (source/Shared, a
+submodule). PopPCE builds only source/Shared/AsmExtra.s from it (plus
+the header nds_asm.h that the assembly files include).
+License: MIT (source/Shared/LICENSE.txt), reproduced here:
+
+  The MIT License (MIT)
+
+  Copyright (c) 2020-2025 Fredrik Ahlström
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+Some Shared headers say "All rights reserved"; source/Shared/zlib.h is
+under the zlib license (see that file). Neither is built into PopPCE.
+
+
+CUE sheet parser (source/cueparser/CUEParser.c, CUEParser.h)
+------------------------------------------------------------
+Bundled in NitroGrafx; built unchanged into PopPCE.
+
+  Simple CUE sheet parser suitable for embedded systems.
+
+  Copyright (c) 2023 Rabbit Hole Computing
+  Conversion from C++ to C and additions Copyright (c) 2026 Fredrik Ahlström
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+
+
+libretro API header (CE/include/libretro.h)
+-------------------------------------------
+Copied unchanged; used for the interface between the core glue and the
+front end.
+
+  Copyright (C) 2010-2020 The RetroArch team
+
+  The following license statement only applies to this libretro API
+  header (libretro.h).
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to permit
+  persons to whom the Software is furnished to do so, subject to the
+  following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+  NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+  USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+SuperGrafx game list (CE/core/pce_core_ce.c: sgxCrcs)
+-----------------------------------------------------
+To recognise SuperGrafx HuCards that are dumped as .pce, PopPCE checks
+the CRC32 of the image against six values. These CRC values and game
+titles are factual data about the original game images; the list was
+taken as a reference from the SuperGrafx game list in
+beetle-supergrafx-libretro:
+
+  https://github.com/libretro/beetle-supergrafx-libretro
+  mednafen/pce_fast/pce.cpp (sgx_table), commit 3c6fcd3
+
+No Mednafen code is used in PopPCE. Thanks to the Mednafen project and
+the libretro team, who maintain the libretro port, for compiling this
+list.
+
+README screenshots (.github/screenshots/)
+-----------------------------------------
+Game: "Mai Nurse" by lunoka - https://lunoka.itch.io/mai-nurse
+Shown in .github/README.md with the author's permission. These images
+are not covered by this repository's licenses (the NitroGrafx author's
+conditions, MIT, CC0 1.0); the game's copyright belongs to its author.
+They are not part of AppMain.exe.
+
+
+Fonts
+-----
+The PopPCE binary (AppMain.exe) embeds bitmap glyph data for its
+Japanese/English menu text. The default build (make, CE_FONT=galmuri14)
+uses glyphs converted from the Galmuri14 font; the few characters
+Galmuri14 does not have (Greek, Cyrillic and some math symbols) are
+filled in from the Shinonome 16dot font. Both are described below.
+
+
+Galmuri font (Galmuri14, GalmuriMono11)
+---------------------------------------
+Upstream: https://github.com/quiple/galmuri
+Version used: 2.40.4 (commit 71e1cac)
+Copyright (c) 2019-2025 Lee Minseo (quiple@quiple.dev)
+License: SIL Open Font License, Version 1.1 (full text below)
+
+The glyph bitmaps of dist/Galmuri14.bdf (and, for the optional
+CE_FONT=galmuri11 build, dist/GalmuriMono11.bdf) were converted by
+CE/tools/galmuri2c.py into the C glyph tables CE/app/ce_galmuri14.h and
+CE/app/ce_galmuri11.h (a Modified Version under the OFL: format
+conversion, character subset, vertical placement, and missing glyphs
+filled from Shinonome 16dot). No Reserved Font Name is declared after
+the copyright statement in the upstream ofl.md. These glyph tables
+remain under the SIL Open Font License 1.1; the rest of PopPCE is not
+covered by it.
+
+  Copyright (c) 2019–2025 Lee Minseo (quiple@quiple.dev)
+
+  This font software is licensed under the SIL Open Font License, Version 1.1.
+  This license is copied below, and is also available with a FAQ at:
+  https://openfontlicense.org
+
+  SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+
+  PREAMBLE
+
+  The goals of the Open Font License (OFL) are to stimulate worldwide
+  development of collaborative font projects, to support the font creation
+  efforts of academic and linguistic communities, and to provide a free and
+  open framework in which fonts may be shared and improved in partnership
+  with others.
+
+  The OFL allows the licensed fonts to be used, studied, modified and
+  redistributed freely as long as they are not sold by themselves. The
+  fonts, including any derivative works, can be bundled, embedded,
+  redistributed and/or sold with any software provided that any reserved
+  names are not used by derivative works. The fonts and derivatives,
+  however, cannot be released under any other type of license. The
+  requirement for fonts to remain under this license does not apply
+  to any document created using the fonts or their derivatives.
+
+  DEFINITIONS
+
+  "Font Software" refers to the set of files released by the Copyright
+  Holder(s) under this license and clearly marked as such. This may
+  include source files, build scripts and documentation.
+
+  "Reserved Font Name" refers to any names specified as such after the
+  copyright statement(s).
+
+  "Original Version" refers to the collection of Font Software components as
+  distributed by the Copyright Holder(s).
+
+  "Modified Version" refers to any derivative made by adding to, deleting,
+  or substituting -- in part or in whole -- any of the components of the
+  Original Version, by changing formats or by porting the Font Software to a
+  new environment.
+
+  "Author" refers to any designer, engineer, programmer, technical
+  writer or other person who contributed to the Font Software.
+
+  PERMISSION & CONDITIONS
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of the Font Software, to use, study, copy, merge, embed, modify,
+  redistribute, and sell modified and unmodified copies of the Font
+  Software, subject to the following conditions:
+
+  1. Neither the Font Software nor any of its individual components,
+  in Original or Modified Versions, may be sold by itself.
+
+  2. Original or Modified Versions of the Font Software may be bundled,
+  redistributed and/or sold with any software, provided that each copy
+  contains the above copyright notice and this license. These can be
+  included either as stand-alone text files, human-readable headers or
+  in the appropriate machine-readable metadata fields within text or
+  binary files as long as those fields can be easily viewed by the user.
+
+  3. No Modified Version of the Font Software may use the Reserved Font
+  Name(s) unless explicit written permission is granted by the corresponding
+  Copyright Holder. This restriction only applies to the primary font name as
+  presented to the users.
+
+  4. The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+  Software shall not be used to promote, endorse or advertise any
+  Modified Version, except to acknowledge the contribution(s) of the
+  Copyright Holder(s) and the Author(s) or with their explicit written
+  permission.
+
+  5. The Font Software, modified or unmodified, in part or in whole,
+  must be distributed entirely under this license, and must not be
+  distributed under any other license. The requirement for fonts to
+  remain under this license does not apply to any document created
+  using the Font Software.
+
+  TERMINATION
+
+  This license becomes null and void if any of the above conditions are
+  not met.
+
+  DISCLAIMER
+
+  THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+  OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+  INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+  DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+  OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+Shinonome bitmap font (16dot)
+------------------------------
+Upstream: https://github.com/code4fukui/shinonome-font
+(a GitHub mirror of the original /efont/ "Shinonome" font archive)
+
+Main design (16dot): Yasuyuki Furukawa <Furukawa.Yasuyuki@fujixerox.co.jp>
+  http://www.on.cs.keio.ac.jp/~yasu/
+A small number of symbol glyphs are reused as-is from the X11 standard
+"jiskan16" font (see the upstream project's AUTHORS file for the exact
+character list).
+Maintained by: The Electronic Font Open Laboratory (/efont/)
+  http://openlab.ring.gr.jp/efont/
+
+The upstream README.md labels this project "MIT License", but the
+LICENSE file it points to is not MIT boilerplate - it is the following
+declaration (Japanese original, reproduced verbatim, with an English
+paraphrase below):
+
+  ●東雲フォントライセンス
+                                                                      2001
+                                       The Electronic Font Open Laboratory
+                                          http://openlab.ring.gr.jp/efont/
+
+  このアーカイブに含まれるすべてのフォントデータ、ドキュメント、スク
+  リプト類はすべて Public Domain で提供されています 。
+
+  但し、日本に於いては現時点で著作権を放棄することは法律上不可能で
+  あり、AUTHORS に列挙されている作者がその権利を行使しないと宣言す
+  ることで実質的な Public Domain であるとします。
+
+  自由な改造、他フォーマットへの変換、組込み、再配布を行うことがで
+  きます。同時に、これらはすべて完全に無保証です。
+
+  (English paraphrase, non-normative: All font data, documentation and
+  scripts in this archive are offered as Public Domain. Since Japanese
+  law does not currently permit an outright waiver of copyright, this
+  is achieved instead by the authors listed in AUTHORS declaring that
+  they will not exercise those rights, which is functionally
+  equivalent to Public Domain. Free modification, conversion to other
+  formats, embedding, and redistribution are all permitted, and the
+  work carries no warranty of any kind.)
+
+AUTHORS (excerpt, reproduced verbatim - the "16 dot" section covering
+the glyphs this build actually embeds; see the upstream repository's
+own AUTHORS file at the URL above for the 12/14/18 dot sections and
+full history):
+
+  ●16 ドット●
+  メインデザイン
+  	古川 泰之様 <Furukawa.Yasuyuki@fujixerox.co.jp>
+  			参照 http://www.on.cs.keio.ac.jp/~yasu/
+
+  --------------------------------------------------------
+  以下は、X11 標準の jiskan16 フォントからそのまま使わせて
+  いただいている文字のリストです。
+  --------------------------------------------------------
+
+              JIS コード			(2000.10.8 現在)
+     行数 16 進数 10 進数 パターン
+       1	  2124  ( 8484):  ，
+       2	  2125  ( 8485):  ．
+       3	  2126  ( 8486):  ・
+       4	  212f  ( 8495):  ¨
+       5	  2131  ( 8497):  ￣
+       6	  2132  ( 8498):  ＿
+       7	  213d  ( 8509):  ―
+       8	  213e  ( 8510):  ‐
+       9	  213f  ( 8511):  ／
+      10	  2140  ( 8512):  ＼
+      11	  2142  ( 8514):  ∥
+      12	  2143  ( 8515):  ｜
+      13	  2144  ( 8516):  …
+      14	  2145  ( 8517):  ‥
+      15	  2146  ( 8518):  ‘
+      16	  2147  ( 8519):  ’
+      17	  2148  ( 8520):  “
+      18	  2149  ( 8521):  ”
+      19	  214c  ( 8524):  〔
+      20	  214d  ( 8525):  〕
+      21	  214e  ( 8526):  ［
+      22	  214f  ( 8527):  ］
+      23	  2156  ( 8534):  「
+      24	  2157  ( 8535):  」
+      25	  2158  ( 8536):  『
+      26	  2159  ( 8537):  』
+      27	  215a  ( 8538):  【
+      28	  215b  ( 8539):  】
+      29	  215d  ( 8541):  －
+      30	  215f  ( 8543):  ×
+      31	  2160  ( 8544):  ÷
+      32	  2161  ( 8545):  ＝
+      33	  2162  ( 8546):  ≠
+      34	  2165  ( 8549):  ≦
+      35	  2166  ( 8550):  ≧
+      36	  2168  ( 8552):  ∴
+      37	  2169  ( 8553):  ♂
+      38	  216a  ( 8554):  ♀
+      39	  216b  ( 8555):  °
+      40	  216c  ( 8556):  ′
+      41	  216d  ( 8557):  ″
+      42	  2174  ( 8564):  ＃
+      43	  217a  ( 8570):  ★
+      44	  217b  ( 8571):  ○
+      45	  217c  ( 8572):  ●
+      46	  217d  ( 8573):  ◎
+      47	  217e  ( 8574):  ◇
+      48	  2221  ( 8737):  ◆
+      49	  2222  ( 8738):  □
+      50	  2223  ( 8739):  ■
+      51	  2228  ( 8744):  ※
+      52	  223a  ( 8762):  ∈
+      53	  223b  ( 8763):  ∋
+      54	  223c  ( 8764):  ⊆
+      55	  223d  ( 8765):  ⊇
+      56	  224c  ( 8780):  ￢
+      57	  224d  ( 8781):  ⇒
+      58	  224e  ( 8782):  ⇔
+      59	  2250  ( 8784):  ∃
+      60	  225c  ( 8796):  ∠
+      61	  225d  ( 8797):  ⊥
+      62	  2261  ( 8801):  ≡
+      63	  2262  ( 8802):  ≒
+      64	  2266  ( 8806):  ∽
+      65	  2267  ( 8807):  ∝
+      66	  2268  ( 8808):  ∵
+      67	  2269  ( 8809):  ∫
+      68	  226a  ( 8810):  ∬
+      69	  2274  ( 8820):  ♯
+      70	  2276  ( 8822):  ♪
+      71	  2278  ( 8824):  ‡
+      72	  227e  ( 8830):  ◯
+      73	  2570  ( 9584):  ヰ
+      74	  262e  ( 9774):  Ξ
+      75	  2725  (10021):  Д
+      76	  2821  (10273):  ─
+      77	  2822  (10274):  │
+      78	  2823  (10275):  ┌
+      79	  2824  (10276):  ┐
+      80	  2825  (10277):  ┘
+      81	  2826  (10278):  └
+      82	  2827  (10279):  ├
+      83	  2828  (10280):  ┬
+      84	  2829  (10281):  ┤
+      85	  282a  (10282):  ┴
+      86	  282b  (10283):  ┼
+      87	  282c  (10284):  ━
+      88	  282d  (10285):  ┃
+      89	  282e  (10286):  ┏
+      90	  282f  (10287):  ┓
+      91	  2830  (10288):  ┛
+      92	  2831  (10289):  ┗
+      93	  2832  (10290):  ┣
+      94	  2833  (10291):  ┳
+      95	  2834  (10292):  ┫
+      96	  2835  (10293):  ┻
+      97	  2836  (10294):  ╋
+      98	  2837  (10295):  ┠
+      99	  2838  (10296):  ┯
+     100	  2839  (10297):  ┨
+     101	  283a  (10298):  ┷
+     102	  283b  (10299):  ┿
+     103	  283c  (10300):  ┝
+     104	  283d  (10301):  ┰
+     105	  283e  (10302):  ┥
+     106	  283f  (10303):  ┸
+     107	  2840  (10304):  ╂
+
+Repository this build's font data was sourced from:
+  https://github.com/code4fukui/shinonome-font
+
+The original 16dot BDF-like glyph sources (kanjic/JIS X0208,
+latin1/ISO8859-1, hankaku/JIS X0201) were converted into a C glyph
+table (CE/app/ce_shinonome16.h) once, by the sister PopGB port's
+sys/ce/tools/shinonome2c.py; this project reuses that same generated
+header unchanged.

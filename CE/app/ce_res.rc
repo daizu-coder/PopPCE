@@ -1,0 +1,376 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright (c) 2026 daizu-coder */
+#include <windows.h>
+#include "ce_resource.h"
+#include "ce_app_config.h" /* CE_APP_TITLE_A - see IDD_MAINMENU's CAPTION below */
+
+/* App icon (16x16 + 32x32, 32bpp). IDI_MAIN is this file's lowest-numbered
+ * (and only) ICON resource, so it is the one the shell shows for
+ * AppMain.exe; ce_main.c also puts it on the window class with
+ * LoadIconW(IDI_MAIN). Kept next to the mascot in CE/icon/. */
+IDI_MAIN ICON "icon/poppce.ico"
+
+/* Main-menu mascot, blitted right of the "戻るキーでゲーム再開" hint by
+ * MainMenuDlgProc's WM_PAINT (ce_main.c) - see ce_resource.h's
+ * IDB_MAINMENU. Flattened onto the menu's cream (#F0E1BC) background so
+ * the blit has no visible seam. */
+IDB_MAINMENU BITMAP  "icon/poppce_mascot.bmp"
+
+/* Touch-to-reveal "menu": plain DialogBoxW + PUSHBUTTON controls (see
+ * ce_resource.h for why - this coredll doesn't export SetMenu). English
+ * captions only: this .rc is compiled by windres and we have not
+ * verified Japanese text survives that pipeline intact on this
+ * toolchain, whereas the C-side wide string literals (MessageBoxW text
+ * etc.) are confirmed working via \x-escaped UTF-16 - keep Japanese
+ * strings there, not in resource scripts.
+ *
+ * Layout matches an earlier prototype's IDD_MAINMENU control-for-
+ * control (same rects, same 210x140 size, ported per user request to be
+ * "exactly the same"): Open ROM full width (WS_GROUP so Up/Down *wrap*
+ * at the first/last button - see ce_resource.h), Save/Load State as a
+ * 2-up row, the three config dialogs as a 3-up row in the same slot
+ * the earlier prototype's Misc/Sound/Keys occupy, Exit full width, and a footer hint
+ * line instead of a separate Resume/About button - resuming is just the
+ * physical Back key (IDCANCEL), matching the earlier prototype exactly; there's no
+ * equivalent slot for About in a 4-row layout, so it's gone too.
+ * DS_CENTER dropped and WS_SYSMENU added (round 21, user request) to
+ * match the earlier prototype's own dialogs pixel-for-pixel: positioned at its resource
+ * x/y (0,0, i.e. the screen's top-left corner) instead of centered, with
+ * a system "X" close box in the caption bar. That box isn't a dialog
+ * control, so it never enters this dialog's physical-key focus chain;
+ * tapping it delivers IDCANCEL the same way the physical Back key
+ * already does (see MainMenuDlgProc's IDCANCEL case below), so no new
+ * handling was needed for it to work. */
+IDD_MAINMENU DIALOG 0, 0, 210, 154
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+/* CE_APP_TITLE_A (ce_app_config.h), not a literal - CAPTION strings
+ * must be narrow (a wide L"..." CAPTION literal is unverified on this
+ * toolchain, hence the app's translated strings staying out of .rc
+ * entirely, see comment above), and windres preprocesses .rc files
+ * through cpp (this file's own #include lines already prove that), so
+ * the macro expands here exactly as if it had been hand-typed. Editing
+ * only ce_app_config.h for a new port - not also copying its title into
+ * a second, unrelated literal here - is the whole point: a real port
+ * built from an earlier version of this template (before this macro
+ * indirection existed) correctly filled in CE_APP_TITLE but left this
+ * CAPTION line reading the template's own placeholder text for several
+ * rounds, undetected until a user spotted it in a real-hardware
+ * screenshot, because the old plain-literal CAPTION had no compile-time
+ * link back to ce_app_config.h at all. */
+CAPTION CE_APP_TITLE_A
+FONT 9, "Tahoma"
+BEGIN
+    PUSHBUTTON "Open ROM...", IDC_MM_OPEN,       8,  8, 194, 20, WS_GROUP | WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "Save State",  IDC_MM_SAVESTATE,  8, 32,  93, 20, BS_OWNERDRAW
+    PUSHBUTTON "Load State",  IDC_MM_LOADSTATE, 109, 32,  93, 20, BS_OWNERDRAW
+    PUSHBUTTON "Video Cfg",   IDC_MM_VIDEO,      8, 56,  59, 34, BS_OWNERDRAW
+    PUSHBUTTON "Sound Cfg",   IDC_MM_SOUND,     75, 56,  60, 34, BS_OWNERDRAW
+    PUSHBUTTON "Input Cfg",   IDC_MM_INPUT,    143, 56,  59, 34, BS_OWNERDRAW
+    PUSHBUTTON "Screenshot",  IDC_MM_SCREENSHOT, 8, 94,  93, 20, BS_OWNERDRAW
+    PUSHBUTTON "Exit",        IDC_MM_EXIT,     109, 94,  93, 20, BS_OWNERDRAW
+    LTEXT "Press Back to resume the game.", IDC_MM_HINT, 8, 122, 194, 20
+END
+
+/* PopPCE: the labels are the PC Engine pad's (I-VI, Select, Run - see
+ * ce_input.c's header); the notes below describe the layout's history.
+ *
+ * Two columns (D-pad/Mode/Start on the left, A/B/C/X/Y/Z on the right,
+ * both read top-to-bottom in that order - user request, round 22) of
+ * label + remap-button pairs, plus a footer row - see ce_input.c for
+ * the remap-by-press logic and ce_resource.h for why this is a plain
+ * DialogBox like IDD_MAINMENU. The right column shows Genesis button
+ * letters in their natural A/B/C/X/Y/Z order now, not the retro-
+ * joypad-ID order (C/B/Y/A/X/Z) it used before round 22 - see
+ * ce_input.c's kInputOrder for the ctrlId each row now binds (the
+ * retro/Genesis mapping itself, and hence each row's default key, is
+ * unchanged, only which row it appears in). Width unified to 190 to
+ * match every other settings/picker dialog (user request); height
+ * stays whatever this content needs (12 remap buttons vs. e.g. Sound
+ * Config's 4 rows - a straight 190x104 match isn't physically possible
+ * here, unlike the other three dialogs). No Cancel button - see
+ * IDD_SOUNDCONFIG's comment on why; WS_GROUP on the first remap button
+ * makes Up/Down wrap through OK and back, same mechanism as
+ * IDD_MAINMENU above. No Reset to Defaults button any more (round 21,
+ * user request) - OK's size/position now matches every other dialog's
+ * own OK (50x14, centered). DS_CENTER dropped and WS_SYSMENU added
+ * (round 21) - see IDD_MAINMENU's comment above for why. */
+/* 8 rows x 2 columns (ported from PopSG's own Input Config,
+ * itself ported from the sister PopSNES's diagonal-
+ * combo buttons - the dev notes round 30). Left
+ * column: Up/Down/Left/Right, then the four diagonal combos (Up R/
+ * R Down/Down L/L Up - see ce_input.c's s_map idB field). Right
+ * column: the same six joypad buttons as before (A/B/C/X/Y/Z), then a
+ * deliberately blank row where Select would go (dropped from this
+ * dialog to make room - see ce_resource.h's IDC_IC_BTN_SELECT
+ * comment), then Start moved down to the last row. Row spacing/button
+ * height (17/14) match PopSG's own IDD_INPUTCONFIG so all 8
+ * rows fit a 190x170 dialog without resizing it. Width unified to 190
+ * to match every other settings/picker dialog (user request); every
+ * label box is 32 wide and every remap button 54 wide (48 until
+ * 2026-09-27: "Press key"/"Backspace" overflowed 48 in the Galmuri14
+ * font, user request +6; the gaps between the columns and the right
+ * margin were narrowed to keep the dialog at 190). No Cancel
+ * button - see IDD_SOUNDCONFIG's comment on why; WS_GROUP on the first
+ * remap button makes Up/Down wrap through OK and back, same mechanism
+ * as IDD_MAINMENU's Open ROM row. */
+IDD_INPUTCONFIG DIALOG 0, 0, 190, 170
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Input Config"
+FONT 9, "Tahoma"
+BEGIN
+    /* PopPCE: PC Engine 6-button pad (Avenue Pad 6) layout. Right column
+     * = buttons I-VI, Select, Run. Roman numerals are written with ASCII
+     * letters: the Shinonome font (ce_shinonome16.h) has no U+2160 range
+     * glyphs. RETRO ids behind each row: I=A, II=B, III=X, IV=Y, V=L,
+     * VI=R, Select=SELECT, Run=START (see ce_input.c's s_map and
+     * pce_core_ce.c's readJoypad). */
+    LTEXT     "Up",       IDC_IC_LBL_UP,      6,  9, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_UP,     40,  8, 54, 14, WS_GROUP | WS_TABSTOP | BS_OWNERDRAW
+    LTEXT     "I",        IDC_IC_LBL_A,      98,  9, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_A,     132,  8, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "Down",     IDC_IC_LBL_DOWN,    6, 26, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_DOWN,   40, 25, 54, 14, BS_OWNERDRAW
+    LTEXT     "II",       IDC_IC_LBL_B,      98, 26, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_B,     132, 25, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "Left",     IDC_IC_LBL_LEFT,    6, 43, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_LEFT,   40, 42, 54, 14, BS_OWNERDRAW
+    LTEXT     "III",      IDC_IC_LBL_C,      98, 43, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_X,     132, 42, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "Right",    IDC_IC_LBL_RIGHT,   6, 60, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_RIGHT,  40, 59, 54, 14, BS_OWNERDRAW
+    LTEXT     "IV",       IDC_IC_LBL_X,      98, 60, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_Y,     132, 59, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "Up R",     IDC_IC_LBL_UPRIGHT,   6, 77, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_UPRIGHT, 40, 76, 54, 14, BS_OWNERDRAW
+    LTEXT     "V",        IDC_IC_LBL_Y,        98, 77, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_L,      132, 76, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "R Down",   IDC_IC_LBL_RIGHTDOWN,  6, 94, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_RIGHTDOWN,40, 93, 54, 14, BS_OWNERDRAW
+    LTEXT     "VI",       IDC_IC_LBL_Z,          98, 94, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_R,        132, 93, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "Down L",   IDC_IC_LBL_DOWNLEFT,   6,111, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_DOWNLEFT, 40,110, 54, 14, BS_OWNERDRAW
+    LTEXT     "Select",   IDC_IC_LBL_SELECT,    98,111, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_SELECT,   132,110, 54, 14, BS_OWNERDRAW
+
+    LTEXT     "L Up",     IDC_IC_LBL_LEFTUP,    6,128, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_LEFTUP,   40,127, 54, 14, BS_OWNERDRAW
+    LTEXT     "Run",      IDC_IC_LBL_START,    98,128, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_START,   132,127, 54, 14, BS_OWNERDRAW
+
+    DEFPUSHBUTTON "OK",                IDOK,          70, 147,  50, 14, BS_OWNERDRAW
+END
+
+/* Volume/Rate/Bits/Quality are all "-/value/+" spinners now (ported
+ * from an earlier prototype's own Sound Settings dialog, per user
+ * request), not a COMBOBOX + RADIOBUTTON pairs - the value lives on a
+ * WS_TABSTOP PUSHBUTTON in the middle so it gets a native focus
+ * rectangle and a place in the physical-key Up/Down/Left/Right loop
+ * (see ce_audio.c's SoundConfigDlgProc/SoundCtrlProc); the "-"/"+"
+ * buttons on either side are touch-only (no WS_TABSTOP), matching
+ * the earlier prototype's IDC_FRAMESKIP_MINUS/PLUS. The separate Mute checkbox is gone
+ * too - Volume all the way down to 0 already silences output (same
+ * design as the earlier prototype's Volume 0..10 replacing its old "No Sound" radio
+ * choice), so a second, redundant control for the same thing didn't
+ * carry over. No Cancel button: this device has no meaningful "discard
+ * changes" gesture, only "go back" - the physical Back key (IDCANCEL)
+ * commits and closes exactly like OK does (see SoundConfigDlgProc). This
+ * Round 27 (ported from the sister PopSNES) added a fifth
+ * "Buffer:" spinner row - the audio ring-buffer cushion size in mono
+ * frames (2048/4096/8192/16384), after a report of audible output
+ * latency at the old fixed ring size - so the dialog grew 104 -> 121
+ * and OK moved 86 -> 103. Same round: all five rows' "-" buttons share
+ * one x (53) and all five value buttons share one x (68), so the
+ * spinner columns line up under each other regardless of how wide the
+ * "Volume:"/"Rate:"/"Bits:"/... caption to their left is (user
+ * request). DS_CENTER dropped and WS_SYSMENU added (round 21) - see
+ * IDD_MAINMENU's comment above for why. */
+IDD_SOUNDCONFIG DIALOG 0, 0, 190, 121
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Sound Config"
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT      "Volume:",  IDC_SC_LBL_VOLUME,     8,  9, 44,  8
+    PUSHBUTTON "-",        IDC_SC_VOLUME_MINUS,  53,  7, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "10",       IDC_SC_VOLUME_VALUE,  68,  6, 20, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",        IDC_SC_VOLUME_PLUS,   89,  7, 14, 12, BS_OWNERDRAW
+
+    LTEXT      "Rate:",    IDC_SC_LBL_RATE,       8, 26, 30,  8
+    PUSHBUTTON "-",        IDC_SC_RATE_MINUS,    53, 24, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "Native",   IDC_SC_RATE_VALUE,    68, 23, 60, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",        IDC_SC_RATE_PLUS,    129, 24, 14, 12, BS_OWNERDRAW
+
+    LTEXT      "Bits:",    IDC_SC_LBL_BITS,       8, 42, 30, 10
+    PUSHBUTTON "-",        IDC_SC_BITS_MINUS,    53, 41, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "16-bit",   IDC_SC_BITS_VALUE,    68, 40, 63, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",        IDC_SC_BITS_PLUS,    132, 41, 14, 12, BS_OWNERDRAW
+
+    LTEXT      "Quality:", IDC_SC_LBL_QUALITY,    8, 59, 34, 10
+    PUSHBUTTON "-",        IDC_SC_QUALITY_MINUS, 53, 58, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "Smooth",   IDC_SC_QUALITY_VALUE, 68, 57, 63, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",        IDC_SC_QUALITY_PLUS, 132, 58, 14, 12, BS_OWNERDRAW
+
+    LTEXT      "Buffer:",  IDC_SC_LBL_BUFFER,     8, 76, 34, 10
+    PUSHBUTTON "-",        IDC_SC_BUFFER_MINUS,  53, 75, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "8 KB",     IDC_SC_BUFFER_VALUE,  68, 74, 63, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",        IDC_SC_BUFFER_PLUS,  132, 75, 14, 12, BS_OWNERDRAW
+
+    DEFPUSHBUTTON "OK",    IDOK,                  70, 103, 50, 14, BS_OWNERDRAW
+END
+
+/* Scale (see CeScaleMode in ce_video.h for what each of the 4 modes
+ * does), Transparency Effects, Frame Skip (a "-/value/+" spinner, same
+ * reasoning as Sound Config's rows above), the English/Japanese toggle
+ * (round 24: also a "-/value/+" spinner now, see ce_resource.h's
+ * comment on IDC_VC_JAPANESE) - this project's closest analogue to
+ * the earlier prototype's Misc dialog. Its Open Last Folder checkbox was removed (the
+ * picker now always reopens the last folder, see ce_fileopen.c; ported
+ * from the sister PopSNES), shrinking the dialog 132 -> 118. Scale was a 2x2 RADIOBUTTON grid until round 21 (user
+ * request); now a single "-/value/+" spinner cycling through 4 states
+ * displayed as x1/x1.5/Wide/Full (see ce_video.c's kScaleOrder/
+ * kScaleLabels), same pattern as Frame Skip below and Sound Config's
+ * Volume/Rate/Bits/Quality - one fewer row than the old grid, so the
+ * dialog is shorter (116 vs. 130). No Cancel button - see
+ * IDD_SOUNDCONFIG's comment above. Width unified to 190 like every
+ * other settings/picker dialog. DS_CENTER dropped and WS_SYSMENU added
+ * (round 21) - see IDD_MAINMENU's comment above for why. Round 25 (user
+ * request) first moved IDC_VC_LANG_MINUS to the same x=45 as
+ * IDC_VC_SCALE_MINUS above it and narrowed the value readout from 142
+ * to 100; round 26 (user request, after seeing that on hardware)
+ * abandoned matching Scale's x and instead centers the whole "-/value/
+ * +" group horizontally within this dialog's own 190 width (unlike
+ * Scale/Frame Skip above, which stay flush left under their own
+ * "Scale:"/"Frame Skip:" captions - this row has no such caption to
+ * stay flush with), and narrowed the value readout again, to 90 (both
+ * "GAIKOKU-English" and "NIHON-Japanese" still fit - IDC_VC_JAPANESE is
+ * one control shown at two different strings, not two controls, so
+ * they're always exactly the same box). */
+IDD_VIDEOCONFIG DIALOG 0, 0, 190, 101
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Video Config"
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT       "Scale:",       IDC_VC_LBL_SCALE,        8,  9, 30,  8
+    PUSHBUTTON  "-",            IDC_VC_SCALE_MINUS,     45,  7, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON  "x1",           IDC_VC_SCALE_VALUE,     60,  6, 40, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON  "+",            IDC_VC_SCALE_PLUS,      101,  7, 14, 12, BS_OWNERDRAW
+
+    /* BS_OWNERDRAW on a CHECKBOX collides with BS_CHECKBOX in the same
+     * style field (both live in the low 4 bits windres treats as one
+     * button-type value, not independent flags) and silently breaks
+     * BM_GETCHECK/BM_SETCHECK/CheckDlgButton() - real-hardware-
+     * confirmed lesson from the sister PopNES / PopGB ports
+     * (see the dev notes). ce_video.c no longer trusts the system check state
+     * for the checkbox below: it keeps its own bool
+     * (s_debugLog) as the source of
+     * truth and paints the box+check itself from WM_DRAWITEM via
+     * CeBmpFontDrawOwnerCheckbox() (ce_bmpfont.c). */
+    /* PopPCE: the template's "No Sprite Limit" row (y=24) is removed;
+     * everything below moved up 17 units. */
+
+    LTEXT       "Frame Skip:",  IDC_VC_LBL_FRAMESKIP,   8, 25,  90, 12
+    PUSHBUTTON  "-",            IDC_VC_FRAMESKIP_DOWN, 100, 23,  14, 12, BS_OWNERDRAW
+    PUSHBUTTON  "Off",          IDC_VC_FRAMESKIP_LABEL,116, 22,  26, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON  "+",            IDC_VC_FRAMESKIP_UP,   144, 23,  14, 12, BS_OWNERDRAW
+
+    /* Round 26 (user request): this row's "-/value/+" group (total
+     * width 14+2+90+2+14=122) is centred within the dialog's own 190
+     * width - (190-122)/2=34 either side - rather than lining up with
+     * any other row's column, since it has no leading caption of its
+     * own to align under. The value readout (IDC_VC_JAPANESE) is
+     * deliberately left off the CeLangGetUIFont()/BS_OWNERDRAW
+     * treatment applied to every other label in this dialog (see
+     * ce_video.c's UpdateLanguageLabel) - it shows a romaji pair
+     * ("GAIKOKU-English"/"NIHON-Japanese") that reads correctly either
+     * way without needing the Shinonome font at all. */
+    PUSHBUTTON  "-",              IDC_VC_LANG_MINUS,      34, 44,  14, 12, BS_OWNERDRAW
+    PUSHBUTTON  "GAIKOKU-English", IDC_VC_JAPANESE,       50, 43,  90, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON  "+",              IDC_VC_LANG_PLUS,      142, 44,  14, 12, BS_OWNERDRAW
+
+
+    /* Enable Debug Logging (round 28, ported from the sister
+     * PopSNES): while unchecked (the default) CeLog() is a no-op and
+     * no log file is created - see ce_log.h. Same BS_OWNERDRAW checkbox
+     * pitfall as the two boxes above; ce_video.c keeps s_debugLog as the
+     * source of truth and paints it via CeBmpFontDrawOwnerCheckbox(). */
+    CHECKBOX    "Enable Debug Logging", IDC_VC_DEBUGLOG, 8, 57, 160, 12, BS_OWNERDRAW
+
+    DEFPUSHBUTTON "OK",  IDOK,                          70, 77, 50, 14, BS_OWNERDRAW
+END
+
+/* Custom ROM picker (see ce_fileopen.c) - replaces GetOpenFileNameW(),
+ * ported to match an earlier prototype's own IDD_FILEOPEN/
+ * DLGFileOpen as closely as possible (same field layout; WS_SYSMENU
+ * added here, unlike this project's other dialogs, to match its "X"
+ * close box - DS_CENTER kept from this project's own convention since
+ * it's already proven reliable here, whereas the earlier prototype's version doesn't use
+ * it). Folder-list + up-navigation ("<" as the first entry, not a real
+ * file/folder) only, driven by the physical direction keys and the
+ * decide/cancel keys - decide enters a folder or picks a file, cancel
+ * goes up a folder or closes the picker at the root. Resized to 190x104
+ * (from 200x130, user request) to match every settings/picker dialog
+ * exactly, same OK position (70,86,50,14) as Sound/Video Config. */
+IDD_FILEOPEN DIALOG 0, 0, 190, 108
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select ROM"
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT      "",       IDC_FO_PATH, 6, 4, 178, 10
+    /* Height trimmed 66 -> 64 (real-hardware lesson from the sister
+     * PopNES / PopGB ports): at 66 the last row this box can
+     * show came out partially clipped on real hardware. LBS_OWNERDRAWFIXED
+     * (needed so CeBmpFontDrawTextW() can paint each row itself, same
+     * as every other control here) requires LBS_HASSTRINGS alongside it
+     * or LB_GETTEXT comes back empty - see the dev notes. ce_fileopen.c's Left/Right paging feature derives
+     * its own page size from whatever this height actually resolves to
+     * in pixels at runtime (WM_MEASUREITEM's row height), not from a
+     * fixed row count assumed here - the DLU-vs-pixel mismatch made a
+     * hand-calculated row count unreliable on real hardware (see
+     * the dev notes). PopPCE, 2026-09-27: 64 -> 68 (dialog 104 -> 108,
+     * OK 86 -> 90) - with the Galmuri14 font's 19px rows the 6th row came
+     * out cut off on real hardware. +6 was too tall on real hardware,
+     * +4 per user request. */
+    LISTBOX               IDC_FO_LIST, 6, 16, 178, 68, LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON "OK",   IDOK,        70, 90, 50, 14, BS_OWNERDRAW
+END
+
+/* Generic message box (see ce_resource.h's IDD_MSGBOX comment and
+ * ce_main.c's CeShowMsgBox()/MsgBoxDlgProc) - ported from the sister
+ * PopGB / PopNES projects' own IDD_MSGBOX, same dimensions/
+ * control layout. Use for any result message that can carry Japanese
+ * text (MessageBoxW() can't - see ce_resource.h). */
+IDD_MSGBOX DIALOG 0, 0, 134, 70
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION CE_APP_TITLE_A
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT      "",     IDC_MB_TEXT, 8, 8, 118, 36
+    DEFPUSHBUTTON "OK", IDOK,       42, 48, 50, 14, BS_OWNERDRAW
+END
+
+/* Save State confirmation - "セーブしますか？" / "Save State?" with two
+ * owner-draw buttons (はい/Yes = IDC_SF_YES, いいえ/No = IDC_SF_NO),
+ * Left/Right/Up/Down moving focus between them, the decide key
+ * committing the focused one, Esc/Back = No. On はい the dialog runs the
+ * save in place and swaps its own text/buttons to the result (NO
+ * hidden, YES relabelled "OK" and recentred) - it never closes and
+ * reopens a second modal (see the dev notes).
+ * Same 134x70 dimensions and self-drawn bitmap-font label as IDD_MSGBOX;
+ * IDC_SF_TEXT starts empty, stays hidden, and is repainted in WM_PAINT
+ * from s_msgBoxText. See CeConfirmAndSaveState()/SaveConfirmDlgProc() in
+ * ce_main.c. */
+IDD_SAVECONFIRM DIALOG 0, 0, 134, 70
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION CE_APP_TITLE_A
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT      "",      IDC_SF_TEXT, 8, 8, 118, 36
+    DEFPUSHBUTTON "Yes", IDC_SF_YES, 18, 48, 45, 14, BS_OWNERDRAW
+    PUSHBUTTON    "No",  IDC_SF_NO,  71, 48, 45, 14, BS_OWNERDRAW
+END

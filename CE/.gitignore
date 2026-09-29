@@ -1,0 +1,31 @@
+build/
+*.mp4
+*.wav
+/AppMain.exe
+/AppMain_shinonome.exe
+/AppMain_galmuri11.exe
+*:Zone.Identifier
+*.pce
+*.sgx
+*.bmp
+# Mascot drawing sources and the other Pop apps' icons (not published;
+# the build uses icon/poppce.ico and icon/poppce_mascot.bmp)
+/icon/*.png
+/icon/icons/
+# The app icon and the mascot bitmap in icon/ are shipped
+!/icon/poppce.ico
+!/icon/poppce_mascot.bmp
+*.log
+*.cfg
+# game images, saves and states (never commit or publish)
+*.cue
+*.bin
+*.chd
+*.iso
+*.srm
+*.state
+*.state.tmp
+# local development notes (personal paths, never publish)
+/*.md
+!/README.md
+!/LICENSING.md
