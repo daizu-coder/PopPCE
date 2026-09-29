@@ -1,0 +1,98 @@
+--- a/source/cdrom.s
++++ b/source/cdrom.s
+@@ -301,6 +301,8 @@
+ 	ldrb r0,adDma
+ 	tst r0,#0x03
+ 	ldrne r0,dataLen
++	ldrbne r1,adpcmDmaOn
++	orrne r0,r0,r1
+ 	cmpne r0,#0
+ 	movne r0,#0xA00				;@ 2048*(75/60). CD frames/TV frames.
+ 	blne AdpcmDMA
+@@ -719,6 +721,7 @@
+ 	bic r1,r0,#0x80
+ 	biceq r1,r1,#0x04
+ 	strb r1,adpcmStatus
++	and r0,r0,r1
+ 	ldrb r1,cdIrqReq
+ 	tst r1,#0x08				;@ ADPCM finnished playing?
+ 	orrne r0,#0x01
+--- a/source/VDC.s
++++ b/source/VDC.s
+@@ -202,6 +202,19 @@
+ 	strb r0,vdcStat
+ 	setIrqPin VDCIRQ_F
+ noRasterIrq:
++	ldrb r0,vdcPrimedVBl
++	tst r0,#0x01
++	beq 82f
++	ldr r2,vdcRasterCompareCPU
++	cmp r5,r2
++	beq 82f
++	mov r2,#0
++	strb r2,vdcPrimedVBl
++	ldrb r2,vdcStat
++	orr r2,r2,#0x20
++	strb r2,vdcStat
++	setIrqPin VDCIRQ_F
++82:
+ 
+ 	mov r0,#0
+ 	ldmfd sp!,{r4,r5,pc}
+@@ -247,6 +260,18 @@
+ 
+ ;@----------------------------------------------------------------------------
+ vblHook:					;@ 193/240
++	ldr r0,vdcRasterCompareCPU
++	cmp r5,r0
++	bne 81f
++	ldrb r0,vdcCtrl1
++	tst r0,#0x04
++	beq 81f
++	ldrb r0,vdcPrimedVBl
++	cmp r0,#0
++	orrne r0,r0,#0x01
++	strbne r0,vdcPrimedVBl
++	bx lr
++81:
+ ;@----------------------------------------------------------------------------
+ 	mov r0,#0
+ 	ldrb r2,vdcPrimedVBl
+--- a/source/PCEPSG/pcepsg.s
++++ b/source/PCEPSG/pcepsg.s
+@@ -271,6 +271,12 @@
+ 	ldmfd sp!,{pc}
+ ;@----------------------------------------------------------------------------
+ getVolumeDS:				;@ r0=chCtrl,r1=chBalance,r2=globalBalance
++	and r8,r3,#0xF0				;@ Balance 0 = mute
++	tst r4,#0x0F
++	moveq r8,#0
++	and r9,r3,#0x0F
++	tst r4,#0xF0000000
++	moveq r9,#0
+ ;@----------------------------------------------------------------------------
+ #ifdef SAMPLE_PLAYING
+ 	tst r2,#0x80				;@ Should channel be played?
+@@ -293,6 +299,10 @@
+ 
+ 	ldr r2,[r5,r2,lsl#2]
+ 	ldr r3,[r5,r6,lsl#2]
++	cmp r8,#0
++	moveq r2,#0
++	cmp r9,#0
++	moveq r3,#0
+ 	bx lr
+ ;@----------------------------------------------------------------------------
+ attenuation:
+@@ -379,6 +389,11 @@
+ 	ldrb r1,[psgptr,#psgChannel]
+ 	add r2,psgptr,r1,lsl#2
+ 	strb r0,[r2,#ch0Balance]
++	mov r0,#1
++	mov r0,r0,lsl r1
++	ldrb r1,[psgptr,#amplitudeChg]
++	orr r1,r1,r0
++	strb r1,[psgptr,#amplitudeChg]
+ 	bx lr
+ ;@----------------------------------------------------------------------------
+ _0806W:						;@ Waveform Data
