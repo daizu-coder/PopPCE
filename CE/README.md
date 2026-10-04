@@ -66,6 +66,8 @@ git submodule update --init
 
 - SHARP Brain PW-G5200
 
+PopGBA を CeOpener や CERestorer から起動すると、PW-G5300 で、終了後に画面が真っ暗になる、または操作を受け付けなくなることがありました。USB ケーブルと電池を抜いてから入れ直すと戻りました。PopPCE での動作は確かめていません。
+
 ## クレジット
 
 - **NitroGrafx、ARMH6280(CPU)、PCEPSG(音源)**— Fredrik Ahlström 氏。PopPCE の中心となるエミュレータです。移植を快く認めてくださり、不具合の報告にも丁寧に対応していただきました。
