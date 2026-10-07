@@ -109,6 +109,17 @@ static LRESULT CALLBACK FileListCtrlProc(HWND hWnd, UINT message, WPARAM wParam,
     if (message == WM_GETDLGCODE)
         return CallWindowProc(s_pFileListOrigProc, hWnd, message, wParam, lParam) | DLGC_WANTARROWS;
 
+    /* Printable characters (the device's A-Z keys, digits, ...) are
+     * swallowed here instead of reaching the listbox's own default
+     * handling - LBS_HASSTRINGS (ce_res.rc) makes that default jump the
+     * selection to the next entry starting with the typed character, so
+     * the focus moved on every letter key (real-hardware report,
+     * PW-G5300). Only the direction keys should move it here. Control
+     * characters below a space (Enter, Escape, Backspace, ...) are still
+     * passed through unchanged. */
+    if (message == WM_CHAR && wParam >= L' ')
+        return 0;
+
     if (message == WM_KEYDOWN && (wParam == VK_LEFT || wParam == VK_RIGHT))
     {
         LRESULT count = SendMessage(hWnd, LB_GETCOUNT, 0, 0);
