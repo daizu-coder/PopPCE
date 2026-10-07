@@ -484,6 +484,10 @@ static void DrawMenuIcon(HDC hdc, CeMenuIcon icon, int cx, int cy, int box)
     }
 }
 
+/* Width in px of the focused main-menu button's white ring - see the
+ * focus-ring block inside CeBmpFontDrawOwnerButtonTheme() below. */
+#define CE_MENU_FOCUS_BORDER_PX 3
+
 void CeBmpFontDrawOwnerButtonTheme(const DRAWITEMSTRUCT *dis, COLORREF bg, COLORREF border, COLORREF text,
                                     CeMenuIcon icon, int stacked, COLORREF windowBg)
 {
@@ -522,14 +526,19 @@ void CeBmpFontDrawOwnerButtonTheme(const DRAWITEMSTRUCT *dis, COLORREF bg, COLOR
          * request: "change the blue/white inversion to green/white"),
          * then yellow (user request: "change the green/white inversion
          * to yellow/white"), then back to blue (user request: "change
-         * the focus reversal color to blue/white") - still white
-         * border/icon/text every time, only the fill color changed. A
-         * tap/decide darkens the fill slightly for visible press
-         * feedback, and nudges the label/icon down/right by 1px -
-         * matches the shift DrawFrameControl() itself applies to a
-         * pushed button on this device (see
+         * the focus reversal color to blue/white"), then a calmer
+         * blue (user request: "a more subdued blue than the current
+         * one") - still white border/icon/text every time, only the
+         * fill color changed. That same round also thickened the white
+         * ring (4px then, now 3px - see the focus-ring block further down). The
+         * current #2F5FA8 has a 6.32:1 contrast ratio against the white
+         * text (the brighter #2A6BCC it replaced: 5.16:1). A tap/decide
+         * darkens the fill to about 3/4 of each channel (#23477E,
+         * 9.23:1) for visible press feedback, and nudges the label/icon
+         * down/right by 1px - matches the shift DrawFrameControl()
+         * itself applies to a pushed button on this device (see
          * CeBmpFontDrawOwnerButton()'s own comment). */
-        bg = pressed ? RGB(0x1F, 0x4E, 0x99) : RGB(0x2A, 0x6B, 0xCC);
+        bg = pressed ? RGB(0x23, 0x47, 0x7E) : RGB(0x2F, 0x5F, 0xA8);
         border = RGB(0xFF, 0xFF, 0xFF);
         text = RGB(0xFF, 0xFF, 0xFF);
         if (pressed)
@@ -579,6 +588,30 @@ void CeBmpFontDrawOwnerButtonTheme(const DRAWITEMSTRUCT *dis, COLORREF bg, COLOR
      * paint solid interiors instead of the intended outline-only icons.
      * A stock object, so no matching DeleteObject(). */
     SelectObject(dis->hDC, GetStockObject(NULL_BRUSH));
+
+    /* Focus ring (user requests: "make the focus outline thicker, 4px", later 1px thinner, now 3px):
+     * a separate CE_MENU_FOCUS_BORDER_PX pen drawn on top of the normal
+     * 2px outline above, inset by half its width so its outer edge
+     * lines up with the button's own edge instead of half of it being
+     * clipped away by the button window. The pill keeps the same outer
+     * size focused or not - only the white ring grows inward. The icon
+     * below keeps the 2px pen (hPen is re-selected right after). The
+     * inner corner diameter is clamped at 0 for safety, though every
+     * IDD_MAINMENU button is at least 20 DLU on its shorter side, far
+     * above CE_MENU_FOCUS_BORDER_PX. */
+    if (focused && !disabled)
+    {
+        HPEN hFocusPen = CreatePen(PS_SOLID, CE_MENU_FOCUS_BORDER_PX, border);
+        int inset = CE_MENU_FOCUS_BORDER_PX / 2;
+        int focusCorner = corner - 2 * inset; /* concentric with the pill edge for odd widths too */
+        if (focusCorner < 0)
+            focusCorner = 0;
+        SelectObject(dis->hDC, hFocusPen);
+        RoundRect(dis->hDC, rc.left + inset, rc.top + inset, rc.right - inset, rc.bottom - inset,
+                  focusCorner, focusCorner);
+        SelectObject(dis->hDC, hPen);
+        DeleteObject(hFocusPen);
+    }
 
     /* Icon reuses the border-color pen (thicker, 2px) already selected
      * above rather than switching to the text color - keeps the icon
