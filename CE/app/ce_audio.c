@@ -123,7 +123,7 @@ static int s_interpMode  = 0;     /* 0 = Smooth, 1 = Fast */
 
 /* CD-audio-derived family (8000/11025/22050/44100), NOT round off-family
  * numbers like 11000/22000/33000/44000. A sibling CE port on this exact
- * hardware (SHARP Brain PW-G5200) confirmed the off-family values by
+ * hardware (SHARP Brain PW-G5300) confirmed the off-family values by
  * real-hardware testing: waveOutOpen() accepts them (returns
  * MMSYSERR_NOERROR, no error logged) but the driver may not actually
  * render them - a silent failure mode indistinguishable from a working

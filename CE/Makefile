@@ -24,7 +24,7 @@ AS      := $(TOOLPREFIX)as
 NM      := $(TOOLPREFIX)nm
 STRIP   := $(TOOLPREFIX)strip
 
-# armv5te (the PW-G5200's ARM926EJ-S) + no unaligned access.
+# armv5te (the PW-G5300's ARM926EJ-S) + no unaligned access.
 ARCH_FLAGS := -march=armv5te -mno-unaligned-access
 # gas only takes the -march half.
 AS_FLAGS   := -march=armv5te

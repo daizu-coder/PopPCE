@@ -15,9 +15,9 @@
 </p>
 <p align="center"><sub>画面は lunoka 氏の <a href="https://lunoka.itch.io/mai-nurse">「Mai Nurse」</a> を PopPCE の x1(等倍)表示で動かしたものです(作者の許可を得て掲載。下の「クレジット」を参照)。</sub></p>
 
-**非公式・非商用の改変版です。** PopPCE は、Fredrik Ahlström 氏の PC エンジン エミュレータ [NitroGrafx](https://github.com/FluBBaOfWard/NitroGrafx) を、SHARP の電子辞書 Brain PW-G5200(Windows CE)向けに移植した**非公式**の改変版です。NitroGrafx の公式版ではありません。元の作者はこの移植に関わっておらず、サポートもしていません。不具合の報告は、NitroGrafx ではなくこちらにお願いします。利用の根拠は [NitroGrafx issue #20](https://github.com/FluBBaOfWard/NitroGrafx/issues/20) での作者の返信です(公式版と偽らないこと、商用利用しないこと)。
+**非公式・非商用の改変版です。** PopPCE は、Fredrik Ahlström 氏の PC エンジン エミュレータ [NitroGrafx](https://github.com/FluBBaOfWard/NitroGrafx) を、SHARP の電子辞書 Brain PW-G5300(Windows CE)向けに移植した**非公式**の改変版です。NitroGrafx の公式版ではありません。元の作者はこの移植に関わっておらず、サポートもしていません。不具合の報告は、NitroGrafx ではなくこちらにお願いします。利用の根拠は [NitroGrafx issue #20](https://github.com/FluBBaOfWard/NitroGrafx/issues/20) での作者の返信です(公式版と偽らないこと、商用利用しないこと)。
 
-**Unofficial, non-commercial port.** PopPCE is an unofficial port of NitroGrafx by Fredrik Ahlström to the SHARP Brain PW-G5200 (Windows CE). It is not an official NitroGrafx release, and the original author is not involved in it and does not support it. Please do not report PopPCE issues upstream. Permission: the author's reply in [issue #20](https://github.com/FluBBaOfWard/NitroGrafx/issues/20) (do not impersonate his releases, no commercial use).
+**Unofficial, non-commercial port.** PopPCE is an unofficial port of NitroGrafx by Fredrik Ahlström to the SHARP Brain PW-G5300 (Windows CE). It is not an official NitroGrafx release, and the original author is not involved in it and does not support it. Please do not report PopPCE issues upstream. Permission: the author's reply in [issue #20](https://github.com/FluBBaOfWard/NitroGrafx/issues/20) (do not impersonate his releases, no commercial use).
 
 ## ダウンロード
 最新版は Releases のページからダウンロードできます。

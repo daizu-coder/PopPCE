@@ -1,7 +1,7 @@
 # PopPCE
 
 > **Unofficial, non-commercial port.** PopPCE is an unofficial port of
-> NitroGrafx by Fredrik Ahlström to the SHARP Brain PW-G5200 (Windows CE).
+> NitroGrafx by Fredrik Ahlström to the SHARP Brain PW-G5300 (Windows CE).
 > It is not an official NitroGrafx release. The original author is not
 > involved in it and does not provide support for it, so please report
 > PopPCE issues here, not to the NitroGrafx project.
@@ -11,7 +11,7 @@
 
 ## 概要
 
-- SHARP の電子辞書 **Brain PW-G5200**(Windows CE / ARM)向けに、PC エンジンのエミュレータ **NitroGrafx**(Fredrik Ahlström 氏作、ニンテンドーDS 用)を移植したものです。エミュレーションの中心(ARM アセンブリ)はそのまま使い、DS の画面処理の部分をソフトウェアの描画に置き換えて、Win32 のフロントエンドで動かしています
+- SHARP の電子辞書 **Brain PW-G5300**(Windows CE / ARM)向けに、PC エンジンのエミュレータ **NitroGrafx**(Fredrik Ahlström 氏作、ニンテンドーDS 用)を移植したものです。エミュレーションの中心(ARM アセンブリ)はそのまま使い、DS の画面処理の部分をソフトウェアの描画に置き換えて、Win32 のフロントエンドで動かしています
 - HuCard、SuperGrafx、CD-ROM² のゲームに対応しています
 - 無料・非商用のホームブリュー(自作ソフト)で、ソースコードを公開しています
 - ライセンスは、全体が **NitroGrafx の作者の条件(非公式・非商用)**、自作部分が **MIT**、マスコットの絵とアイコンが **CC0 1.0** です。詳しくは [`LICENSING.md`](LICENSING.md)・[`LICENSE`](LICENSE)・[`THIRDPARTY_LICENSES.txt`](THIRDPARTY_LICENSES.txt) を見てください
@@ -46,7 +46,7 @@ git submodule update --init
 
 ## 使用方法
 
-- `AppMain.exe` を、実機(PW-G5200)の好きなフォルダに置いてください
+- `AppMain.exe` を、実機(PW-G5300)の好きなフォルダに置いてください
 - 開けるファイル
   * HuCard のゲーム: `.pce`
   * SuperGrafx のゲーム: `.sgx`(`.pce` でも、SuperGrafx 専用のゲームとして知られているものは SuperGrafx として動きます)
@@ -64,7 +64,7 @@ git submodule update --init
 
 ## 動作確認環境
 
-- SHARP Brain PW-G5200
+- SHARP Brain PW-G5300
 
 PopGBA を CeOpener や CERestorer から起動すると、PW-G5300 で、終了後に画面が真っ暗になる、または操作を受け付けなくなることがありました。USB ケーブルと電池を抜いてから入れ直すと戻りました。PopPCE での動作は確かめていません。
 
