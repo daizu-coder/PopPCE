@@ -268,9 +268,12 @@ static int PickRom(HWND owner, wchar_t *outPath, size_t outPathCount)
 /* What the .srm file holds (last loaded or saved), so CeSaveSram() writes
  * only when the game has changed its SRAM: on this device writing even a
  * 2KB file stalls the frame loop for 0.8-1.8s (seen with the CD BRAM and
- * the 30s autosave). */
+ * the 30s autosave). s_sramShadowValid is 0 when the file's content
+ * isn't known (a failed write or fclose, no memory for the copy), so the
+ * next CeSaveSram() writes again - same as the sister PopGBA/PopSG. */
 static unsigned char *s_sramShadow;
 static size_t s_sramShadowSize;
+static int s_sramShadowValid;
 
 static void CeSramRemember(const void *sram, size_t size)
 {
@@ -282,6 +285,7 @@ static void CeSramRemember(const void *sram, size_t size)
     }
     if (s_sramShadow)
         memcpy(s_sramShadow, sram, size);
+    s_sramShadowValid = s_sramShadow != NULL;
 }
 
 static void CeLoadSram(void)
@@ -295,6 +299,7 @@ static void CeLoadSram(void)
     free(s_sramShadow);
     s_sramShadow = NULL;
     s_sramShadowSize = 0;
+    s_sramShadowValid = 0;
     if (!sram || size == 0)
         return; /* this game has no battery-backed SRAM */
 
@@ -328,24 +333,39 @@ static void CeSaveSram(void)
     size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
     wchar_t sramPath[MAX_PATH + 8];
     FILE *f;
+    size_t wrote;
+    int closeErr;
 
     if (!sram || size == 0)
         return; /* this game has no battery-backed SRAM - nothing to save */
-    if (s_sramShadow && s_sramShadowSize == size && memcmp(s_sramShadow, sram, size) == 0)
+    if (s_sramShadowValid && s_sramShadow && s_sramShadowSize == size &&
+        memcmp(s_sramShadow, sram, size) == 0)
         return; /* unchanged since the last load/save */
 
     _snwprintf(sramPath, MAX_PATH + 8, L"%s.srm", g_romPath);
     f = _wfopen(sramPath, L"wb");
     if (!f)
     {
+        s_sramShadowValid = 0;
         CeLog("CeSaveSram: failed to open .srm file for write");
         return;
     }
 
-    fwrite(sram, 1, size, f);
-    fclose(f);
-    CeSramRemember(sram, size);
-    CeLog("CeSaveSram: saved %lu bytes", (unsigned long)size);
+    wrote = fwrite(sram, 1, size, f);
+    closeErr = fclose(f);
+    if (wrote == size && closeErr == 0)
+    {
+        CeSramRemember(sram, size);
+        CeLog("CeSaveSram: saved %lu bytes", (unsigned long)size);
+    }
+    else
+    {
+        /* "wb" already truncated the file - write it again next time,
+         * even if the SRAM doesn't change. */
+        s_sramShadowValid = 0;
+        CeLog("CeSaveSram: failed (wrote %lu of %lu, fclose=%d)",
+              (unsigned long)wrote, (unsigned long)size, closeErr);
+    }
 }
 
 /* ------------------------------------------------------------------ */
