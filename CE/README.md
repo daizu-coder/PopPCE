@@ -21,20 +21,20 @@
 ## ビルド方法
 
 - ツール
-  * cegcc(`arm-mingw32ce-*`、`/opt/cegcc`)— Windows CE / ARM 向けのクロスコンパイラ
+  * cegcc(`arm-mingw32ce-*`、`/opt/cegcc`)— Windows CE / ARM 向けのクロスコンパイラ。製作者は WSL(Windows 上の Linux)でビルドしています
   * GNU sed、cpp(上流のアセンブリをビルドのときに変換します)
 - サブモジュール `source/ARMH6280`(CPU)と `source/Shared`(NDS_Shared)
 - 手順
   * `CE/` で `make && make strip` を実行します
-  * `CE/AppMain.exe` ができます
+  * `CE/AppMain.exe` ができます(依存する DLL は `COREDLL.dll` だけ)
   * 上流のファイルは書き換えません。Windows CE 向けの変更は、ビルドのときに `core/cefix.sed` で当てます
 
 **クローンするときは `--recursive` を付けてください。** 付けないと、サブモジュールのフォルダが空のままになり、ビルドできません(`make` は最初に、どのフォルダが空かを表示して止まります)。GitHub の「Download ZIP」にもサブモジュールの中身は入らないので、ZIP では取得しないでください。
 
-```
+```sh
 git clone --recursive https://github.com/daizu-coder/PopPCE.git
 cd PopPCE/CE
-make          # -> CE/AppMain.exe
+make
 make strip
 ```
 
