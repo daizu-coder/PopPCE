@@ -45,7 +45,9 @@ PopPCE 全体は、NitroGrafx の作者の条件(非公式・非商用)で配布
 
 ゲームの ROM、CD のイメージ、CD-ROM² のシステムカード(BIOS)は同梱していません。
 
-## ビルド方法、使用方法 → [CE/README.md](../CE/README.md)
+## ビルド方法、使用方法
+(→ [CE/README.md](../CE/README.md) にあります)
+
 ソースを取得するときは `git clone --recursive` を使ってください。サブモジュール(ARMH6280、NDS_Shared)を使っているので、`--recursive` なしのクローンや「Download ZIP」ではビルドできません。
 
 ## クレジット
