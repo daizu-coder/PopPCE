@@ -41,16 +41,12 @@ CD-ROM² のゲームは、`.cue` と、それに対応する1つの `.bin` の�
 ## ライセンスと商標
 PopPCE 全体は、NitroGrafx の作者の条件(非公式・非商用)で配布します。PopPCE の自作部分は MIT ライセンス、マスコットの絵とアイコンは CC0 1.0 です。
 
-「PCエンジン」「PC Engine」「CD-ROM²」「SUPER CD-ROM²」「スーパーグラフィックス」「SuperGrafx」「TurboGrafx」などは、それぞれの権利者の商標です。「SHARP」「Brain」はシャープ株式会社の商標です。PopPCE は、NEC、ハドソン、コナミ、シャープなどの権利者とは関係ありません。
-
-ライセンスの詳しい説明は [CE/LICENSING.md](../CE/LICENSING.md) にあります。
+「PCエンジン」「PC Engine」「CD-ROM²」「SUPER CD-ROM²」「スーパーグラフィックス」「SuperGrafx」「TurboGrafx」などは、それぞれの権利者の商標です。「SHARP」「Brain」はシャープ株式会社の商標です。PopPCE は、NEC、ハドソン、コナミ、シャープなどの権利者とは関係ありません。ライセンスの詳しい説明は [CE/LICENSING.md](../CE/LICENSING.md) にあります。
 
 ゲームの ROM、CD のイメージ、CD-ROM² のシステムカード(BIOS)は同梱していません。
 
-## ビルド方法、使用方法
+## ビルド方法、使用方法 → [CE/README.md](../CE/README.md)
 ソースを取得するときは `git clone --recursive` を使ってください。サブモジュール(ARMH6280、NDS_Shared)を使っているので、`--recursive` なしのクローンや「Download ZIP」ではビルドできません。
-
-ビルド方法と使用方法は [CE/README.md](../CE/README.md) をご覧ください。
 
 ## クレジット
 
