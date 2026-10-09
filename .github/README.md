@@ -43,13 +43,14 @@ PopPCE 全体は、NitroGrafx の作者の条件(非公式・非商用)で配布
 
 「PCエンジン」「PC Engine」「CD-ROM²」「SUPER CD-ROM²」「スーパーグラフィックス」「SuperGrafx」「TurboGrafx」などは、それぞれの権利者の商標です。「SHARP」「Brain」はシャープ株式会社の商標です。PopPCE は、NEC、ハドソン、コナミ、シャープなどの権利者とは関係ありません。
 
+ライセンスの詳しい説明は [CE/LICENSING.md](../CE/LICENSING.md) にあります。
+
 ゲームの ROM、CD のイメージ、CD-ROM² のシステムカード(BIOS)は同梱していません。
 
+## ビルド方法、使用方法
 ソースを取得するときは `git clone --recursive` を使ってください。サブモジュール(ARMH6280、NDS_Shared)を使っているので、`--recursive` なしのクローンや「Download ZIP」ではビルドできません。
 
-**使い方やビルドの説明は [CE/README.md](../CE/README.md)、ライセンスの詳しい説明は [CE/LICENSING.md](../CE/LICENSING.md) にあります。**
-
-このリポジトリは、上流の [FluBBaOfWard/NitroGrafx](https://github.com/FluBBaOfWard/NitroGrafx) のコミット `207dc5e` を元にしています。直下の `README.md` は上流の NitroGrafx の説明で、PopPCE の説明ではありません。
+ビルド方法と使用方法は [CE/README.md](../CE/README.md) をご覧ください。
 
 ## クレジット
 
