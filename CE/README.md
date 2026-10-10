@@ -5,6 +5,8 @@
 > It is not an official NitroGrafx release. The original author is not
 > involved in it and does not provide support for it, so please report
 > PopPCE issues here, not to the NitroGrafx project.
+> SuperGrafx support is PopPCE's own addition (upstream NitroGrafx has no
+> SuperGrafx video), so please report SuperGrafx issues to PopPCE only.
 > Used with permission, based on the author's reply in
 > [issue #20](https://github.com/FluBBaOfWard/NitroGrafx/issues/20)
 > (no commercial use, and it must not be presented as an official release).
@@ -13,6 +15,7 @@
 
 - SHARP の電子辞書 **Brain PW-G5300**(Windows CE / ARM)向けに、PC エンジンのエミュレータ **NitroGrafx**(Fredrik Ahlström 氏作、ニンテンドーDS 用)を移植したものです。エミュレーションの中心(ARM アセンブリ)はそのまま使い、DS の画面処理の部分をソフトウェアの描画に置き換えて、Win32 のフロントエンドで動かしています
 - HuCard、SuperGrafx、CD-ROM² のゲームに対応しています
+  * SuperGrafx への対応(2つ目の VDC と VPC)は、PopPCE が独自に足したものです。上流の NitroGrafx は SuperGrafx の映像に対応していません。SuperGrafx のゲームの不具合は、NitroGrafx ではなく [PopPCE の Issues](https://github.com/daizu-coder/PopPCE/issues) に報告してください
 - 無料・非商用のホームブリュー(自作ソフト)で、ソースコードを公開しています
 - ライセンスは、全体が **NitroGrafx の作者の条件(非公式・非商用)**、自作部分が **MIT**、マスコットの絵とアイコンが **CC0 1.0** です。詳しくは [`LICENSING.md`](LICENSING.md)・[`LICENSE`](LICENSE)・[`THIRDPARTY_LICENSES.txt`](THIRDPARTY_LICENSES.txt) を見てください
 - ゲームの ROM、CD のイメージ、CD-ROM² のシステムカード(BIOS)は同梱していません。ご自身で用意してください

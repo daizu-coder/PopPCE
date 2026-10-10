@@ -28,8 +28,8 @@
  * VDC2 by CE/core/mkvdc2.sh, all of its state has the same names plus _2)
  * is drawn the same way into its own BG and sprite lines, and the two
  * VDCs' lines are mixed straight into the output with the VPC's priority
- * and window registers (vpcRegs), as Mednafen does
- * (beetle-supergrafx-libretro pce_fast/vpc_mix_inner.inc).
+ * and window registers (vpcRegs), giving the same result as Mednafen
+ * (behaviour reference: beetle-supergrafx-libretro vpc_mix_inner.inc).
  *
  * Not emulated yet: the 16 sprites per line limit, sprite collision and
  * sprite overflow status bits, the 2bpp sprite mode (CG mode bit).
@@ -137,10 +137,10 @@ static uint8_t sprTiles2[512 * 256] __attribute__((aligned(8)));
 /* EMUPALBUFF converted to RGB565: 0-255 BG, 256-511 sprites */
 static uint16_t pal565[512];
 
-/* Bit spreading for the tile decode (the table form of Mednafen
- * pce_fast's vdc_spread8, which suits a 32-bit CPU better): bit 7-k of
- * a bitplane byte goes to bit 0 of byte k, k = 0 being the leftmost
- * pixel. spreadL covers pixels 0-3, spreadR pixels 4-7. */
+/* Bit spreading for the tile decode (the same bit order as Mednafen
+ * pce_fast's vdc_spread8, done with tables, which suits a 32-bit CPU
+ * better): bit 7-k of a bitplane byte goes to bit 0 of byte k, k = 0
+ * being the leftmost pixel. spreadL covers pixels 0-3, spreadR pixels 4-7. */
 #define SPR_L(b)	((((b) >> 7) & 1u) | ((((b) >> 6) & 1u) << 8) \
 			| ((((b) >> 5) & 1u) << 16) | ((((b) >> 4) & 1u) << 24))
 #define SPR_R(b)	SPR_L((b) << 4)
@@ -608,9 +608,9 @@ static void mixSpecial(uint16_t *dst, int x, int end, const SgxSrc *a, const Sgx
 	}
 }
 
-/* The VPC (HuC6202), as Mednafen's MixVPC: two windows, each covering
- * x < width - 0x40, split the line into up to 4 regions, and each region
- * takes one nibble of the priority register (bits 12-15 outside both
+/* The VPC (HuC6202); behaves like Mednafen's MixVPC: two windows, each
+ * covering x < width - 0x40, split the line into up to 4 regions, and each
+ * region takes one nibble of the priority register (bits 12-15 outside both
  * windows, 8-11 in window 1 only, 4-7 in window 2 only, 0-3 in both):
  *   bit 0 / bit 1   VDC1 / VDC2 shown
  *   bits 2-3 = 1    VDC2 sprites in front of VDC1's BG (not its sprites)
