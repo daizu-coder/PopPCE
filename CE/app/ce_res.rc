@@ -96,7 +96,7 @@ END
  * (round 21) - see IDD_MAINMENU's comment above for why. */
 /* 8 rows x 2 columns (ported from PopSG's own Input Config,
  * itself ported from the sister PopSNES's diagonal-
- * combo buttons - the dev notes round 30). Left
+ * combo buttons - PopSG's round 30). Left
  * column: Up/Down/Left/Right, then the four diagonal combos (Up R/
  * R Down/Down L/L Up - see ce_input.c's s_map idB field). Right
  * column: the same six joypad buttons as before (A/B/C/X/Y/Z), then a

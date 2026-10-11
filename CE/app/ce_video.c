@@ -67,10 +67,10 @@ void CeVideoInit(void)
           (int)s_scaleMode, s_frameSkip, s_debugLog);
 }
 
-/* Registry-based persistence (samDesired/RegFlushKey lessons of round
- * 3/8 - see the dev notes) didn't survive an actual power-off on this
- * device (round 9 user report) - now goes through ce_config.c's plain
- * config file instead, same as ce_input.c/ce_audio.c. */
+/* Registry-based persistence (samDesired/RegFlushKey lessons of the sister
+ * PopSNES port's rounds 3/8) didn't survive an actual power-off on this
+ * device (that port's round 9 user report) - now goes through ce_config.c's
+ * plain config file instead, same as ce_input.c/ce_audio.c. */
 static void CeVideoSaveConfig(void)
 {
     CeConfigSetInt("VideoScaleMode", (int)s_scaleMode);

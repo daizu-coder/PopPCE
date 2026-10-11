@@ -50,10 +50,10 @@ void CeAudioGetBufferStatus(int *active, unsigned *occupancyPercent, int *underr
 /* Tells the drain thread that retro_run() has stopped being called (the
  * touch-to-reveal menu / a settings dialog is up, ce_main.c's g_paused).
  * Ring will legitimately starve during this time since nothing is
- * pushing new samples - CeAudioThreadProc keeps playing silence exactly
- * as before, this only stops it from misreporting that starvation as an
- * "audio underrun" (which the log/counter otherwise can't tell apart
- * from the emulator genuinely falling behind - see round-20 dev notes
+ * pushing new samples - CeAudioThreadProc keeps playing silence exactly as
+ * before, this only stops it from misreporting that starvation as an "audio
+ * underrun" (which the log/counter otherwise can't tell apart from the
+ * emulator genuinely falling behind - see the sister PopSG port's round-21
  * investigation). Call from ce_main.c wherever g_paused is set/cleared. */
 void CeAudioSetPaused(int paused);
 

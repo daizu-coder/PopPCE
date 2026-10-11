@@ -748,7 +748,7 @@ static void CeShowMsgBox(HWND owner, const wchar_t *text)
 /* Do NOT implement this as "confirm dialog -> close -> result message  */
 /* box" (two modal DialogBoxW calls under the main menu): the hand-off  */
 /* exposes the main menu for a frame and its owner-draw "ステートセーブ" */
-/* button repaints to the front (see the dev notes - the round-22      */
+/* button repaints to the front (the sister PopGBA port's round-22     */
 /* nested-modal composition glitch, on the save                         */
 /* path; every timing/forced-repaint workaround was tried on hardware   */
 /* and none helped). This reuses the IDD_SAVECONFIRM template but never */
@@ -757,7 +757,7 @@ static void CeShowMsgBox(HWND owner, const wchar_t *text)
 /* しました。"), hides the No button and relabels Yes to "OK" recentred. */
 /* EndDialog only on the OK press (or Esc while showing the result).    */
 /* Two owner-draw buttons (はい/Yes = IDC_SF_YES, いいえ/No = IDC_SF_NO) */
-/* - the 2-button form section 11 recommends. Shares WrapMsgBoxText()/  */
+/* - the recommended 2-button form. Shares WrapMsgBoxText()/            */
 /* s_msgBoxText with CeShowMsgBox above. Returns 1 if the save ran,     */
 /* 0 if declined. */
 /* ------------------------------------------------------------------ */

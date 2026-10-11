@@ -278,7 +278,7 @@
  * On はい the dialog runs the save in place and then swaps its own
  * text/buttons to the result acknowledgement - it never closes and
  * reopens a second (nested) modal, which is what made the main menu's
- * "ステートセーブ" button flash to the front (section 6 / section 11).
+ * "ステートセーブ" button flash to the front.
  * Same 134x70 dimensions and self-drawn Shinonome-bitmap-font label
  * (WrapMsgBoxText()/s_msgBoxText) as IDD_MSGBOX. */
 #define IDD_SAVECONFIRM   3600

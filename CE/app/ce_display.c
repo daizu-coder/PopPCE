@@ -444,8 +444,8 @@ void CeDisplayBlitRGB565(const void *src, unsigned srcW, unsigned srcH, unsigned
              * by 3 uint32_t (12 bytes, still a multiple of 4), so
              * alignment holds across cycles too - no unaligned 32-bit
              * access ever occurs (see the -mno-unaligned-access build
-             * flag / dev notes round 13 for why that matters on this
-             * target). srcW%4==0 is guaranteed by the s_scale3over2
+             * flag / PopSNES dev notes round 13 for why that matters on
+             * this target). srcW%4==0 is guaranteed by the s_scale3over2
              * flag check. Assumes a little-endian target. */
             unsigned sx;
             uint32_t *d32 = (uint32_t *)dstRow;
@@ -508,9 +508,9 @@ void CeDisplayBlitRGB565(const void *src, unsigned srcW, unsigned srcH, unsigned
              * A single 8-source / 15-dest cycle would leave the write
              * pointer at a 30-byte (not multiple of 4) offset and
              * misalign the next cycle's 32-bit stores - the
-             * -mno-unaligned-access hazard (dev notes round 13); the
-             * doubled 16/30 cycle is 60 bytes, so alignment holds with
-             * no 16-bit leftover. This weighting is the exact 15/8
+             * -mno-unaligned-access hazard (PopSNES dev notes round 13);
+             * the doubled 16/30 cycle is 60 bytes, so alignment holds
+             * with no 16-bit leftover. This weighting is the exact 15/8
              * nearest-neighbor result (dest column i samples source
              * floor(i*8/15)); the DDA's truncated step can pick one
              * column earlier at a few cycle boundaries.

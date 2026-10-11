@@ -175,9 +175,9 @@ static const VkName kVkNames[] = {
      * English per the button's own function, not what these VK codes
      * conventionally mean on a PC keyboard (VK_14/21/22 are Caps Lock/
      * PageUp/PageDown there) - that PC meaning is irrelevant on this
-     * hardware. (Tried the device's own printed Japanese names here
-     * first - rendered fine with DEFAULT_GUI_FONT, but the user reported
-     * the dialog got noticeably slower, 2026-08-01 round 9 - reverted to
+     * hardware. (Tried the device's own printed Japanese names here first -
+     * rendered fine with DEFAULT_GUI_FONT, but the user reported the dialog
+     * got noticeably slower, 2026-08-01, PopSNES's round 9 - reverted to
      * English and dropped the font switch below along with it.) */
     { 0xDC, L"Voice" },      { 0x14, L"Function" },
     { 0x21, L"Forward" },    { 0x22, L"Previous" },
@@ -230,10 +230,10 @@ static int s_waitingIndex = -1;
  * moment a wait began and poll it every 20ms via a WM_TIMER, filtering
  * out the very key that started the wait so it couldn't immediately
  * re-bind to itself. In practice that didn't hold up on real hardware:
- * this device's dedicated decide/OK button kept self-assigning Enter
- * almost every time regardless (user report, 2026-08-08) - the likely
- * reason being that this particular button doesn't behave like an
- * ordinary keyboard key at the GetAsyncKeyState level at all (round 9's
+ * this device's dedicated decide/OK button kept self-assigning Enter almost
+ * every time regardless (user report, 2026-08-08) - the likely reason being
+ * that this particular button doesn't behave like an ordinary keyboard key
+ * at the GetAsyncKeyState level at all (the sister PopSNES port's round 9's
  * "wired to synthesize the same input as a stylus tap" theory), so a
  * snapshot taken through GetAsyncKeyState can't be trusted to reflect
  * its real down/up state no matter how carefully it's timed - and every
@@ -286,12 +286,12 @@ static void CaptureKeyAsBinding(HWND hDlg, int index, int vk)
     EndWaitForKey(hDlg);
 }
 
-/* Registry-based persistence (samDesired/RegFlushKey lessons of round
- * 3/8 - see the dev notes) turned out not to survive an actual power-off on
- * this device (round 9 user report), so this now goes through
- * ce_config.c's plain config file instead - see that module's header
- * comment for why a real file write is the more dependable mechanism
- * here. */
+/* Registry-based persistence (samDesired/RegFlushKey lessons of the
+ * sister PopSNES port's rounds 3/8) turned out not to survive an actual
+ * power-off on this device (that port's round 9 user report), so this now
+ * goes through ce_config.c's plain config file instead - see that
+ * module's header comment for why a real file write is the more
+ * dependable mechanism here. */
 static void CeInputSaveConfig(void)
 {
     unsigned i;
@@ -307,10 +307,10 @@ static void CeInputSaveConfig(void)
  * colour queries, cursor/hit-test housekeeping, ...) that have nothing
  * to do with a physical key press - excluded from the "\x6c7a\x5b9a"
  * diagnostic logging (both here and ce_main.c's WndProc) so real signal
- * isn't buried in it. Discovered the hard way: round 7's unfiltered
- * logging caught WM_CTLCOLORBTN (0x0135) while waiting for a remap
- * press, which looked like a candidate but is just routine button
- * painting that happens whether or not anything was pressed. */
+ * isn't buried in it. Discovered the hard way: the sister PopSNES port's
+ * earlier unfiltered logging caught WM_CTLCOLORBTN (0x0135) while waiting
+ * for a remap press, which looked like a candidate but is just routine
+ * button painting that happens whether or not anything was pressed. */
 static int IsRoutineDialogChatter(UINT msg)
 {
     switch (msg)
@@ -446,12 +446,12 @@ static WNDPROC s_pInputOrigProc = NULL;
  * deliberately not also WM_KEYUP/WM_SYSKEY.../polling like an earlier
  * version of this dialog). Claiming WANTALLKEYS also means
  * IsDialogMessage() no longer swallows a decide/Enter press into a
- * synthesized BN_CLICKED before this dialog ever sees it (the round-9
- * workaround this replaced, see CancelWaitForKey's caller below) - the
- * raw key message reaches this proc directly instead, so starting a
- * remap and completing it with a decide press both go through one
- * unambiguous code path instead of depending on the dialog manager's
- * own Enter-to-click translation. */
+ * synthesized BN_CLICKED before this dialog ever sees it (the sister
+ * PopSNES port's round-9 workaround this replaced, see CancelWaitForKey's
+ * caller below) - the raw key message reaches this proc directly instead,
+ * so starting a remap and completing it with a decide press both go
+ * through one unambiguous code path instead of depending on the dialog
+ * manager's own Enter-to-click translation. */
 static LRESULT CALLBACK InputBtnCtrlProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HWND hDlg = GetParent(hWnd);
@@ -602,10 +602,10 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
                  * here at all now that every remap button is subclassed
                  * (InputBtnCtrlProc's WM_KEYDOWN captures that directly,
                  * bypassing the BN_CLICKED synthesis that used to make
-                 * this ambiguous - see the dev notes' round-9 note for the
-                 * history). Cancel instead of restarting, same re-tap-
-                 * to-cancel gesture as an earlier prototype's own
-                 * remap buttons (its ButtonProc). */
+                 * this ambiguous - see the sister PopSNES port's round-9
+                 * note for the history). Cancel instead of restarting,
+                 * same re-tap-to-cancel gesture as an earlier prototype's
+                 * own remap buttons (its ButtonProc). */
                 CancelWaitForKey(hDlg);
                 return TRUE;
             }
@@ -640,8 +640,8 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
          * window, not continuous), filtered through
          * IsRoutineDialogChatter() so ordinary button-repaint/cursor
          * chatter any idle dialog generates doesn't get mistaken for a
-         * candidate (round 7 learned that the hard way with
-         * WM_CTLCOLORBTN). */
+         * candidate (an earlier unfiltered version in the sister PopSNES
+         * port learned that the hard way with WM_CTLCOLORBTN). */
         if (s_waitingIndex >= 0 && !IsRoutineDialogChatter(msg))
             CeLog("InputConfigDlgProc: msg=0x%04X wParam=0x%08X while waiting for a key press",
                   (unsigned)msg, (unsigned)wParam);

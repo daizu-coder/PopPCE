@@ -7,11 +7,11 @@
  *
  * Replaces per-module HKEY_CURRENT_USER registry storage
  * (ce_input.c/ce_audio.c/ce_video.c all used to write their own
- * registry keys directly): a real power-off test (2026-08-01, round 9)
- * showed the registry doesn't actually survive on this device, even
- * though it does survive a plain app restart - consistent with round 8's
- * discovery that RegFlushKey() returns ERROR_NOT_SUPPORTED here (this
- * device's registry has no reliable "commit to persistent storage now"
+ * registry keys directly): a real power-off test (2026-08-01, the sister
+ * PopSNES port's round 9) showed the registry doesn't actually survive on
+ * this device, even though it does survive a plain app restart -
+ * consistent with that port's round 8 discovery that RegFlushKey()
+ * returns ERROR_NOT_SUPPORTED here (this
  * operation to fall back on). A real fwrite()+fclose() to a file goes
  * through the standard C runtime/OS file write path instead, which is
  * the more dependable persistence mechanism available on this device.
