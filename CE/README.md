@@ -49,7 +49,20 @@ git submodule update --init
 
 ## 使用方法
 
-- `AppMain.exe` を、実機(PW-G5300)の好きなフォルダに置いてください
+SHARP Brain(PW-G5300)を PC にリムーバブルディスクとしてつなぎ、ドライブの直下に次のように置きます(メニューの名前は機種によって違うことがあります)。
+
+```
+<ドライブ直下>/
+  アプリ/
+    <好きなアプリ名>/
+      AppMain.exe    ← ビルドしたもの
+      index.din      ← 中身は空でよいファイル
+```
+
+- `index.din` を置くと、そのフォルダが [追加アプリ・動画] の一覧に出ます
+- ROM は SD カードに置き、アプリのメニューの「ROMを開く」から選びます
+- 設定ファイル `poppce.cfg` は、`AppMain.exe` と同じフォルダに作られます
+- `poppce_debug.log` は、Video Config で「デバッグログを有効にする」をオンにしたときだけ作られます(既定はオフ)
 - 開けるファイル
   * HuCard のゲーム: `.pce`
   * SuperGrafx のゲーム: `.sgx`(`.pce` でも、SuperGrafx 専用のゲームとして知られているものは SuperGrafx として動きます)
@@ -86,7 +99,7 @@ PopGBA を CeOpener や CERestorer から起動すると、PW-G5300 で、終了
   <https://github.com/quiple/galmuri>
 - **東雲(しののめ)16 ドットビットマップフォント** — メインデザイン 古川 泰之 氏ほか、The Electronic Font Open Laboratory(/efont/)。実質パブリックドメイン
   <https://github.com/code4fukui/shinonome-font>
-- **CeGCC** — Windows CE / ARM 向けのクロスコンパイラ
+- **CeGCC** — Windows CE / ARM 向けのクロスコンパイラ。Danny Backx 氏ほか、モダン版の Max Kellermann 氏
 - **SHARP Brain homebrew コミュニティ** — 端末の情報を残してくださった皆さん
 - Windows CE 向けの部分(`CE/`)は、このプロジェクトで作りました
 
