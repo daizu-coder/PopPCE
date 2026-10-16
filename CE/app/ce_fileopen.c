@@ -538,13 +538,11 @@ static INT_PTR CALLBACK FileOpenDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPAR
         }
         if (LOWORD(wParam) == IDCANCEL)
         {
-            if (IsRootDir())
-                EndDialog(hDlg, IDCANCEL);
-            else
-            {
-                NavigateUp();
-                FillFileList(hDlg);
-            }
+            /* Back key (VK_ESCAPE) and the caption's X both arrive here as
+             * IDCANCEL. Close straight back to the caller (the main menu)
+             * from whatever folder is showing - user request, v1.1.0. Going
+             * up a folder is still the "<" entry at the top of the list. */
+            EndDialog(hDlg, IDCANCEL);
             return TRUE;
         }
         break;
