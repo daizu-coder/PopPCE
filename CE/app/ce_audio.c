@@ -135,14 +135,24 @@ static int s_interpMode  = 0;     /* 0 = Smooth, 1 = Fast */
  * downsampling issues that had been suspected instead. If your core's
  * own audio requirements ever force a genuinely different rate choice,
  * treat it as unverified until confirmed on real hardware - "numerically
- * close to a standard rate" is not the same as "confirmed to play". */
-static const unsigned kRateChoices[] = { 8000, 11025, 22050, 44100 };
+ * close to a standard rate" is not the same as "confirmed to play".
+ *
+ * 44100 itself is not in the table: it is the native rate (see
+ * CE_AUDIO_NATIVE_RATE_HZ), so the native step already plays it, without
+ * a resampling pass. A saved fixed 44100 now loads as native
+ * (CeAudioInit). */
+static const unsigned kRateChoices[] = { 8000, 11025, 22050 };
 #define CE_RATE_CHOICE_COUNT (sizeof(kRateChoices) / sizeof(kRateChoices[0]))
-static int s_outputRate = 44100;  /* used only when s_useNativeRate is off */
+static int s_outputRate = 22050;  /* used only when s_useNativeRate is off */
 
-/* "Native" - output at whatever rate the SNES core itself reports
- * (retro_get_system_av_info(), typically ~32000Hz - none of the fixed
- * choices above match it exactly) instead of one of the fixed choices.
+/* The rate retro_get_system_av_info() reports for this core
+ * (PCE_AUDIO_RATE in CE/core/pce_core_ce.c, fixed). Only stands in for
+ * s_coreRate in the Rate readout before a ROM has loaded. */
+#define CE_AUDIO_NATIVE_RATE_HZ 44100u
+
+/* Native - output at whatever rate the core itself reports
+ * (retro_get_system_av_info(), 44100Hz here - shown as that number in
+ * the Rate spinner) instead of one of the fixed choices.
  * At native rate s_resampleStep works out to exactly 0x10000 (1.0), so
  * the resampler below degenerates into a pure 1:1 copy - this is also
  * the answer to "let me turn resampling off": matching the rate makes
@@ -830,12 +840,15 @@ void CeAudioInit(void)
      * confirmed-good family above - a config value that isn't in the
      * *current* table would otherwise silently persist as the effective
      * output rate forever (OpenAudioDevice doesn't validate it against
-     * kRateChoices, only the Sound Config UI's -/+ stepping does).
-     * Snapping to the *numerically closest* remaining choice is
-     * deliberately not done here - see kRateChoices' own comment for why
-     * numeric closeness is a poor predictor of what this hardware
-     * actually plays. Snap straight to the highest/native-adjacent
-     * choice in the table instead. */
+     * kRateChoices, only the Sound Config UI's -/+ stepping does), while
+     * the Rate spinner would show the native step for it
+     * (CurrentRateStepIndex's fallback). Play such a rate (the dropped
+     * fixed 44100, or junk) at the native rate instead, so the readout
+     * and the rate actually played are the same. Snapping to the
+     * *numerically closest* remaining choice is deliberately not done
+     * here - see kRateChoices' own comment for why numeric closeness is
+     * a poor predictor of what this hardware actually plays. s_outputRate
+     * goes to the top of the table so the next save writes a valid value. */
     for (i = 0; i < CE_RATE_CHOICE_COUNT; i++)
     {
         if ((int)kRateChoices[i] == s_outputRate)
@@ -846,8 +859,9 @@ void CeAudioInit(void)
     }
     if (!found)
     {
-        CeLog("CeAudioInit: migrating stale SoundRate=%d (not in current rate table) to %u",
-              s_outputRate, kRateChoices[CE_RATE_CHOICE_COUNT - 1]);
+        CeLog("CeAudioInit: SoundRate=%d is not in the rate table, using the native rate",
+              s_outputRate);
+        s_useNativeRate = 1;
         s_outputRate = (int)kRateChoices[CE_RATE_CHOICE_COUNT - 1];
     }
 
@@ -903,41 +917,64 @@ static void UpdateVolumeLabel(HWND hDlg)
     SetWindowTextW(GetDlgItem(hDlg, IDC_SC_VOLUME_VALUE), text);
 }
 
-/* Combined step index: 0 is "Native", 1..CE_RATE_CHOICE_COUNT are
- * kRateChoices[0..] - one linear list a -/+ pair (or Left/Right) can
- * step through, replacing the old combo box's index. */
+/* The rate the native step plays at (s_useNativeRate: the core's own
+ * rate, no resampling) - shown as its number like the fixed choices.
+ * s_coreRate is 0 until a ROM has loaded; before that the core's fixed
+ * rate (CE_AUDIO_NATIVE_RATE_HZ) stands in for it. */
+static unsigned NativeRateHz(void)
+{
+    return s_coreRate ? s_coreRate : CE_AUDIO_NATIVE_RATE_HZ;
+}
+
+/* Combined step index: kRateChoices[] (ascending) with the native rate
+ * slotted in at its own numeric position - one ascending list of
+ * CE_RATE_CHOICE_COUNT + 1 steps a -/+ pair (or Left/Right) can step
+ * through, replacing the old combo box's index. */
+static int NativeRateStepIndex(void)
+{
+    unsigned i, native = NativeRateHz();
+
+    for (i = 0; i < CE_RATE_CHOICE_COUNT; i++)
+        if (kRateChoices[i] > native)
+            break;
+    return (int)i;
+}
+
 static int CurrentRateStepIndex(void)
 {
     unsigned i;
+    int nativeIndex = NativeRateStepIndex();
 
     if (s_useNativeRate)
-        return 0;
+        return nativeIndex;
 
     for (i = 0; i < CE_RATE_CHOICE_COUNT; i++)
         if ((int)kRateChoices[i] == s_outputRate)
-            return (int)(i + 1);
+            return ((int)i < nativeIndex) ? (int)i : (int)(i + 1);
 
-    return 0; /* fallback: Native */
+    return nativeIndex; /* fallback: native (CeAudioInit maps a rate not in kRateChoices[] there) */
 }
 
 static void SetRateFromStepIndex(int index)
 {
-    if (index <= 0)
+    int nativeIndex = NativeRateStepIndex();
+
+    if (index < 0 || index > (int)CE_RATE_CHOICE_COUNT)
+        return;
+    if (index == nativeIndex)
         s_useNativeRate = 1;
-    else if (index <= (int)CE_RATE_CHOICE_COUNT)
+    else
     {
         s_useNativeRate = 0;
-        s_outputRate = (int)kRateChoices[index - 1];
+        s_outputRate = (int)kRateChoices[(index < nativeIndex) ? index : index - 1];
     }
 }
 
 static void UpdateRateLabel(HWND hDlg)
 {
     wchar_t text[16];
-    if (s_useNativeRate)
-        _snwprintf(text, 16, L"Native");
-    else
-        _snwprintf(text, 16, L"%u Hz", (unsigned)s_outputRate);
+    _snwprintf(text, 16, L"%u Hz",
+               s_useNativeRate ? NativeRateHz() : (unsigned)s_outputRate);
     SetWindowTextW(GetDlgItem(hDlg, IDC_SC_RATE_VALUE), text);
 }
 
