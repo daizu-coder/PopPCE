@@ -374,3 +374,19 @@ BEGIN
     DEFPUSHBUTTON "Yes", IDC_SF_YES, 18, 48, 45, 14, BS_OWNERDRAW
     PUSHBUTTON    "No",  IDC_SF_NO,  71, 48, 45, 14, BS_OWNERDRAW
 END
+
+/* Load State's warning when the load would change the in-game save
+ * (ce_main.c's CeConfirmSramRollback/SramRollbackDlgProc). Same design
+ * and control IDs as IDD_SAVECONFIRM, wider and taller for the longer
+ * text (IDD_SAVECONFIRM's 118x36 text area is too narrow for it); same
+ * size as the sister PopNES port's. The buttons say Load/Cancel (set at
+ * run time, like IDD_SAVECONFIRM's); Cancel is the default. */
+IDD_CONFIRM_LONG DIALOG 0, 0, 200, 84
+STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION CE_APP_TITLE_A
+FONT 9, "Tahoma"
+BEGIN
+    LTEXT      "",      IDC_SF_TEXT, 8, 6, 184, 50
+    PUSHBUTTON    "Load",   IDC_SF_YES, 51, 64, 45, 14, BS_OWNERDRAW
+    DEFPUSHBUTTON "Cancel", IDC_SF_NO, 104, 64, 45, 14, BS_OWNERDRAW
+END

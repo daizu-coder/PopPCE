@@ -286,4 +286,9 @@
 #define IDC_SF_YES        3602
 #define IDC_SF_NO         3603
 
+/* Load State's warning when the load would change the in-game save
+ * (CE/ce_res.rc's IDD_CONFIRM_LONG, ce_main.c's CeConfirmSramRollback()/
+ * SramRollbackDlgProc()). Reuses IDD_SAVECONFIRM's control IDs above. */
+#define IDD_CONFIRM_LONG  3604
+
 #endif
