@@ -240,7 +240,8 @@ updateCDROM:				;@ Called every frame
 
 	stmfd sp!,{r3,lr}
 	ldrb r0,scsiSignal
-	cmp r0,#0x98				;@ Waiting to goto Status
+	cmp r0,#0x88				;@ Waiting to goto Data
+	cmpne r0,#0x98				;@ Waiting to goto Status
 	orreq r0,r0,#0x40
 	beq notPlayCmd
 	cmp r0,#0x80
@@ -284,10 +285,16 @@ noCmdWait:
 
 ;@	mov r11,r11					;@ No$GBA Debugg
 	ldrb r1,cdAudioPlaying
-	cmp r1,#0x02
-	moveq r0,#0xD8				;@ Ready for status.
-	bleq setSCSISignal
+	cmp r1,#0x01
+	cmpne r1,#0x02
+	bne noCDSignal
+	ldrb r0,scsiSignal
+	tst r0,#0x80
+	movne r0,#0xD8				;@ Ready for status.
+	blne setSCSISignal
+noCDSignal:
 	ldrb r0,cdAudioRepeat
+	strb r0,cdPlayMode
 	strb r0,cdAudioPlaying
 	cmp r0,#0
 	blne CD_DoRepeat
@@ -445,15 +452,15 @@ AdpcmDMA:					;@ r0=length to transfer now.
 	ldr r3,adWrPtr				;@ ADPCM write pointer
 	ldr r4,=CD_PCM_RAM			;@ ADPCM-RAM base
 dmaLoop:
+	bl SCSI_SendData
+	strb r0,[r4,r3,lsr#16]
+	add r3,r3,#0x10000
 	ldrb r0,scsiSignal
 	and r1,r0,#0xBF
 	cmp r1,#0x88				;@ Data out?
 	bne dmaEnd
 	tst r0,#0x40				;@ REQ set?
 	beq dmaSectorEnd
-	bl SCSI_SendData
-	strb r0,[r4,r3,lsr#16]
-	add r3,r3,#0x10000
 	subs r5,r5,#1
 	bhi dmaLoop
 	b dmaSkip
@@ -464,6 +471,7 @@ dmaSectorEnd:
 	ldrb r0,adDma
 	bic r0,r0,#1
 	strb r0,adDma
+	sub r5,r5,#1
 dmaSkip:
 	sub r6,r6,r5
 	ldr r0,adLen
@@ -900,13 +908,16 @@ CD04_W:						;@ SCSI reset?
 	bxeq lr
 	mov r0,#0
 	strb r0,scsiData
-	strb r0,cdAudioPlaying
 	strb r0,cdPlayMode
+	strb r0,cdAudioPlaying
 	strb r0,cdIrqReq
 	b setSCSISignal
 ;@----------------------------------------------------------------------------
 CD05_W:						;@ Start CD sound fetching
 ;@----------------------------------------------------------------------------
+	ldrb r0,cdIrqReq
+	eor r0,r0,#0x02				;@ L/R bit should be toggled.
+	strb r0,cdIrqReq
 	ldrb r0,cdAudioPlaying
 	cmp r0,#0
 	ldr r1,=cdReadPtr
@@ -919,9 +930,6 @@ CD05_W:						;@ Start CD sound fetching
 	mov r1,r1,lsl#19			;@ 8kB
 	ldrne r0,[r2,r1,lsr#19]
 	str r0,cdSample
-	ldrb r0,cdIrqReq
-	eor r0,r0,#0x02				;@ L/R bit should be toggled.
-	strb r0,cdIrqReq
 	bx lr
 ;@----------------------------------------------------------------------------
 CD06_W:						;@ PCM Audio high, R/O.
@@ -1081,7 +1089,6 @@ AF_txt:
 
 ;@----------------------------------------------------------------------------
 cdromState:
-dmaOutPtr:	.long 0				;@ DMA data byte ptr
 dataOutPtr:	.long 0				;@ SCSI data byte ptr
 currentPos:	.long 0				;@ Current position on disc
 dataLen:	.long 0				;@ SCSI data length in bytes
@@ -1203,15 +1210,18 @@ Track2Offset:				;@ r0 input & output, uses r1. Gives the offset from the cd-ima
 	ldr r0,[r1,#0x0C]			;@ Offset for this track
 	bx lr
 ;@----------------------------------------------------------------------------
-calcSeekTime:
+calcSeekTime:				;@ r0 = new sector.
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r0,r4-r5,lr}
 	ldr r1,sectorPtr
-	subs r0,r0,r1,lsr#2			;@ Remove the extra bits
-	rsbmi r0,r0,#0
-	mov r0,r0,lsr#13			;@ 21-13=8, for a max of 255 frames for 4GB seek.
+	subs r2,r0,r1,lsr#2			;@ Remove the extra bits
+	rsbmi r2,r2,#0
+	mov r2,r2,lsr#13			;@ 21-13=8, for a max of 255 frames for 4GB seek.
+	add r0,r2,r0,lsr#13+4		;@ Also add half a disc rotation time 100-300ms
 	add r0,r0,#7
 	str r0,cdSeekTime
+	mov r0,#0
+	strb r0,cdAudioPlaying
 	ldmfd sp!,{r0,r4-r5,pc}
 ;@----------------------------------------------------------------------------
 LBA2AudioOffset:			;@ in r0=real LBA
@@ -1256,7 +1266,7 @@ preLoadData:
 	stmfd sp!,{r3,lr}
 //	ldr r0,dataLen
 //	movs r0,r0,lsl#32-11		;@ Is the sector bytes zero?
-//	moveq r0,#0x80
+//	moveq r0,#0x88
 //	bleq setSCSISignal			;@ This needs a more frequent update of CD!!!
 	blx CD_ReadByte
 	ldmfd sp!,{r3,lr}
@@ -1439,8 +1449,8 @@ notTrack:
 	mov r1,#0
 	strb r1,scsiData
 
-	mov r0,#0x80				;@ Only busy yet
-//	mov r0,#0xD8				;@ No data only status
+//	mov r0,#0x80				;@ Only busy yet
+	mov r0,#0x98				;@ No data only status
 	bl setSCSISignal
 
 	mov r1,#0x10000
@@ -1462,28 +1472,30 @@ CD_DoRepeat:
 ;@----------------------------------------------------------------------------
 CD_FindSetEnd:
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r4-r5,lr}
+	stmfd sp!,{r4-r6,lr}
 	ldr r0,cddaStart
 	bl LBA2Track				;@ Get current track
+	add r4,r0,#1
 	ldr r5,tgcdBase
-	ldrb r4,[r5,#cdTOCTrackCount]	;@ Last track
+//	ldrb r4,[r5,#cdTOCTrackCount]	;@ Last track
 	add r5,r5,#8
 findLoop:
 	add r0,r0,#1
-	ldrb r2,[r5,r0,lsl#3]
-	cmp r2,#0					;@ Audio?
+	ldrb r6,[r5,r0,lsl#3]
+	cmp r6,#0					;@ Audio?
 	bne foundDataTrack
 	cmp r0,r4
-	ble findLoop
+	bmi findLoop
 
 foundDataTrack:
 	bl Track2LBA
-	ldr r1,=450
-	sub r0,r0,r1				;@ 3 second pregap for a data track following an audio one.
+	cmp r6,#0					;@ Audio?
+	movne r1,#75*3				;@ 3 second pregap for a data track following an audio one.
+	subne r0,r0,r1
 	mov r0,r0,lsl#2				;@ 2 extra bits for the cd frame vs gba frame.
 	str r0,sectorEnd
 
-	ldmfd sp!,{r4-r5,lr}
+	ldmfd sp!,{r4-r6,lr}
 	bx lr
 ;@----------------------------------------------------------------------------
 cmdEndPlayCD:				;@ Command 0xD9
