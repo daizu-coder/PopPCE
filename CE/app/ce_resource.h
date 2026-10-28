@@ -268,6 +268,12 @@
 #define IDD_MSGBOX        3500
 #define IDC_MB_TEXT       3501
 
+/* The same message box wider (CeShowMsgBoxLong()): its text area has
+ * IDD_CONFIRM_LONG's width, for a message too long for IDD_MSGBOX's
+ * two lines (e.g. the English "earlier version" state message). Reuses
+ * IDC_MB_TEXT; the text is word-wrapped and may contain '\n'. */
+#define IDD_MSGBOX_LONG   3502
+
 /* Save State confirmation dialog (CE/ce_res.rc's IDD_SAVECONFIRM,
  * CeConfirmAndSaveState()/SaveConfirmDlgProc() in ce_main.c). Shown when
  * IDC_MM_SAVESTATE is pressed, before the single "<romPath>.state" slot

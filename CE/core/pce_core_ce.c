@@ -967,18 +967,18 @@ void retro_run(void)
 
 /* --- code addresses inside the state blocks -----------------------------
  * The CPU and VDC blocks hold addresses of core routines: H6280's timeout
- * handlers (h6280NextTimeout/_), VDC.s's scanline hook, its line state
+ * handler (h6280NextTimeout), VDC.s's scanline hook, its line state
  * table (line, routine) and the position in that table. Those move
  * whenever the core is rebuilt with any change (cdrom.s growing by 0x20
  * moved GfxCE.s and VDC2), and loading a v1.2.1 HuCard state then jumped
  * into the middle of other code (Access Violation). So a state stores
- * them as tokens saying which routine or table entry they are (marked by
- * STATE_TAG_TOKENS after the base part), and a load turns tokens back
- * into this build's addresses. A state without the tag takes the raw
- * addresses PopPCE up to v1.2.1 wrote instead (v1.0.3-v1.2.1 placed the
- * core identically: same .ngtext address and size, core sources differ
- * only in comments). Anything else is refused before loading. */
-extern unsigned char PCEFrameLoop[], timerFix[];		/* cpu.s, H6280.s */
+ * them as tokens saying which routine or table entry they are, and a
+ * load turns tokens back into this build's addresses.
+ * h6280NextTimeout_ is no longer used by H6280.s (since ARMH6280
+ * f3629de) and is saved as 0. States from PopPCE v1.3.0 and earlier have
+ * a different VDC block (6 line states) and timeout handler, and are
+ * refused (pceCoreStateIsOld). */
+extern unsigned char h6280Exit[], timerFix[];		/* H6280.s */
 extern unsigned char vdcScanlineHook[], vdcStateTable[], VDCLineStateTable[];
 extern unsigned char borderScanlineHook[], defaultScanlineHook[];
 extern unsigned char vdcScanlineHook_2[], vdcStateTable_2[], VDCLineStateTable_2[];
@@ -997,13 +997,12 @@ extern unsigned char borderScanlineHook_2[], defaultScanlineHook_2[];
 
 /* VDC.s: vdcStateTable's (line, routine) pairs, copied from
  * VDCLineStateTable at reset; only the line numbers change after that */
-#define VDC_LINE_STATES		6
+#define VDC_LINE_STATES		5
 
 #define ADDR(p)				((uint32_t)(uintptr_t)(p))
 
 typedef struct {
 	unsigned char *state, *hook, *table, *defaults, *border, *dflt;
-	uint32_t oldTable, oldBorder, oldDefault;		/* PopPCE up to v1.2.1 */
 } VdcAddrs;
 
 static void getVdcAddrs(VdcAddrs *v, int second)
@@ -1012,12 +1011,10 @@ static void getVdcAddrs(VdcAddrs *v, int second)
 		v->state = vdcState; v->hook = vdcScanlineHook; v->table = vdcStateTable;
 		v->defaults = VDCLineStateTable;
 		v->border = borderScanlineHook; v->dflt = defaultScanlineHook;
-		v->oldTable = 0x2E3CC; v->oldBorder = 0x2DA44; v->oldDefault = 0x2DA68;
 	} else {
 		v->state = vdcState_2; v->hook = vdcScanlineHook_2; v->table = vdcStateTable_2;
 		v->defaults = VDCLineStateTable_2;
 		v->border = borderScanlineHook_2; v->dflt = defaultScanlineHook_2;
-		v->oldTable = 0x32F80; v->oldBorder = 0x325F8; v->oldDefault = 0x3261C;
 	}
 }
 
@@ -1047,73 +1044,63 @@ static uint32_t codeToken(uint32_t v, const uint32_t *targets, int n)
 	return v;
 }
 
-/* A token (tokens != 0) or one of v1.2.1's addresses (tokens == 0) ->
- * this build's targets[i]; 0 when it is not */
-static uint32_t codeAddr(uint32_t v, const uint32_t *targets, const uint32_t *old, int n,
-	int tokens)
+/* A token -> this build's targets[i]; 0 when it is not one */
+static uint32_t codeAddr(uint32_t v, const uint32_t *targets, int n)
 {
-	int i;
+	int i = (v & STATE_TOKEN_MASK) == STATE_TOKEN ? (int)(v & 0xFFFF) - TOKEN_CODE : -1;
 
-	if (tokens) {
-		i = (v & STATE_TOKEN_MASK) == STATE_TOKEN ? (int)(v & 0xFFFF) - TOKEN_CODE : -1;
-		return i >= 0 && i < n ? targets[i] : 0;
-	}
-	for (i = 0; i < n; i++)
-		if (v == old[i])
-			return targets[i];
-	return 0;
+	return i >= 0 && i < n ? targets[i] : 0;
 }
 
-static void h6280Targets(uint32_t *now, uint32_t *old)
+static void h6280Targets(uint32_t *now)
 {
-	now[0] = ADDR(PCEFrameLoop);	old[0] = 0x2CE8C;	/* also SGXFrameLoop */
-	now[1] = ADDR(timerFix);		old[1] = 0x2C2C0;
+	now[0] = ADDR(h6280Exit);
+	now[1] = ADDR(timerFix);
 }
 
-static void vdcTargets(const VdcAddrs *v, uint32_t *now, uint32_t *old)
+static void vdcTargets(const VdcAddrs *v, uint32_t *now)
 {
-	now[0] = ADDR(v->border);	old[0] = v->oldBorder;
-	now[1] = ADDR(v->dflt);		old[1] = v->oldDefault;
+	now[0] = ADDR(v->border);
+	now[1] = ADDR(v->dflt);
 }
 
 static void tokenizeH6280(unsigned char *block)
 {
-	uint32_t now[2], old[2];
+	uint32_t now[2];
 
-	h6280Targets(now, old);
-	putWord(block + H6280_NEXTTIMEOUT_, codeToken(getWord(block + H6280_NEXTTIMEOUT_), now, 2));
+	h6280Targets(now);
+	putWord(block + H6280_NEXTTIMEOUT_, 0);
 	putWord(block + H6280_NEXTTIMEOUT, codeToken(getWord(block + H6280_NEXTTIMEOUT), now, 2));
 }
 
-/* The block's two timeout handlers for this build; 0 if either is unknown */
-static int resolveH6280(const unsigned char *block, int tokens, uint32_t *out)
+/* The block's timeout handler for this build; 0 if it is unknown */
+static int resolveH6280(const unsigned char *block, uint32_t *out)
 {
-	uint32_t now[2], old[2];
+	uint32_t now[2];
 
-	h6280Targets(now, old);
-	out[0] = codeAddr(getWord(block + H6280_NEXTTIMEOUT_), now, old, 2, tokens);
-	out[1] = codeAddr(getWord(block + H6280_NEXTTIMEOUT), now, old, 2, tokens);
-	return out[0] && out[1];
+	h6280Targets(now);
+	*out = codeAddr(getWord(block + H6280_NEXTTIMEOUT), now, 2);
+	return *out != 0;
 }
 
-static void applyH6280(const uint32_t *addrs)
+static void applyH6280(uint32_t addr)
 {
 	/* below the label (H6280.i: .struct -128), as pce_cd_ce.c's CPU_BLOCK */
 	unsigned char *block = (unsigned char *)((uintptr_t)h6280OpTable - 128);
 
-	putWord(block + H6280_NEXTTIMEOUT_, addrs[0]);
-	putWord(block + H6280_NEXTTIMEOUT, addrs[1]);
+	putWord(block + H6280_NEXTTIMEOUT_, 0);
+	putWord(block + H6280_NEXTTIMEOUT, addr);
 }
 
 static void tokenizeVdc(unsigned char *block, int second)
 {
 	VdcAddrs v;
-	uint32_t now[2], old[2], line;
+	uint32_t now[2], line;
 	size_t hookOff, tableOff;
 	int i;
 
 	getVdcAddrs(&v, second);
-	vdcTargets(&v, now, old);
+	vdcTargets(&v, now);
 	hookOff = v.hook - v.state;
 	tableOff = v.table - v.state;
 	putWord(block + hookOff, codeToken(getWord(block + hookOff), now, 2));
@@ -1127,22 +1114,17 @@ static void tokenizeVdc(unsigned char *block, int second)
 }
 
 /* out[0] = scanline hook, out[1] = line state, for this build */
-static int resolveVdc(const unsigned char *block, int second, int tokens, uint32_t *out)
+static int resolveVdc(const unsigned char *block, int second, uint32_t *out)
 {
 	VdcAddrs v;
-	uint32_t now[2], old[2], line;
+	uint32_t now[2], line;
 
 	getVdcAddrs(&v, second);
-	vdcTargets(&v, now, old);
-	out[0] = codeAddr(getWord(block + (v.hook - v.state)), now, old, 2, tokens);
+	vdcTargets(&v, now);
+	out[0] = codeAddr(getWord(block + (v.hook - v.state)), now, 2);
 	line = getWord(block);
-	if (tokens)
-		line = (line & STATE_TOKEN_MASK) == STATE_TOKEN ? (line & 0xFFFF) - TOKEN_LINE
-			: VDC_LINE_STATES * 2;
-	else if (line - v.oldTable < VDC_LINE_STATES * 8 && !((line - v.oldTable) & 3))
-		line = (line - v.oldTable) / 4;
-	else
-		line = VDC_LINE_STATES * 2;
+	line = (line & STATE_TOKEN_MASK) == STATE_TOKEN ? (line & 0xFFFF) - TOKEN_LINE
+		: VDC_LINE_STATES * 2;
 	out[1] = line < VDC_LINE_STATES * 2 ? ADDR(v.table) + line * 4 : 0;
 	return out[0] && out[1];
 }
@@ -1178,11 +1160,12 @@ static size_t stateBaseSize(void)
 	return size;
 }
 
-/* After the base part of every state since the code addresses became
- * tokens. PopPCE up to v1.2.1 then refuses the state (a size other than
- * its base, without an Arcade Card) instead of jumping to a token; here
- * it tells a state with tokens from one with v1.2.1's raw addresses. */
-#define STATE_TAG_TOKENS	0x32534350		/* "PCS2" */
+/* After the base part of every state. It changes whenever the core's
+ * state layout does: "PCS2" was PopPCE v1.3.0's (VDC blocks with 6 line
+ * states, H6280 timing out to PCEFrameLoop); v1.2.1 and earlier had no
+ * tag. Those older PopPCE versions refuse a "PCS3" state (its size is
+ * not theirs). */
+#define STATE_TAG_TOKENS	0x33534350		/* "PCS3" */
 #define STATE_TAG_SIZE		4
 
 static int hasTokenTag(const unsigned char *p, size_t size, size_t base)
@@ -1243,72 +1226,66 @@ bool retro_serialize(void *data, size_t size)
 	return true;
 }
 
-/* The addresses a state's CPU and VDC blocks need in this build: from
- * tokens when the state has STATE_TAG_TOKENS, else from v1.2.1's
- * addresses. 0 if any of them is not one this build knows. The caller
+/* The addresses a state's CPU and VDC blocks need in this build, from
+ * their tokens. 0 if any of them is not one this build knows. The caller
  * has checked that the state covers stateBaseSize(). */
 typedef struct {
-	uint32_t h6280[2], vdc[2], vdc2[2];
+	uint32_t h6280, vdc[2], vdc2[2];
 } StateAddrs;
 
-static int resolveStateAddrs(const unsigned char *p, int tokens, StateAddrs *a)
+static int resolveStateAddrs(const unsigned char *p, StateAddrs *a)
 {
 	const unsigned char *vdc = p + sizeof(pceSRAM) + sizeof(pceRAM) + sizeof(pceVRAM);
 
-	if (!resolveH6280(vdc, tokens, a->h6280))
+	if (!resolveH6280(vdc, &a->h6280))
 		return 0;
 	vdc += h6280GetStateSize();
-	if (!resolveVdc(vdc, 0, tokens, a->vdc))
+	if (!resolveVdc(vdc, 0, a->vdc))
 		return 0;
 	if (isSgx) {
 		vdc += vdcGetStateSize() + vceGetStateSize() + pcePSGGetStateSize()
 			+ SGX_EXTRA_RAM + sizeof(pceVRAM2);
-		if (!resolveVdc(vdc, 1, tokens, a->vdc2))
+		if (!resolveVdc(vdc, 1, a->vdc2))
 			return 0;
 	}
 	return 1;
 }
 
+/* Not a state of this build's layout: no "PCS3" tag after the base part
+ * (every state PopPCE v1.3.0 and earlier saved, HuCard, SuperGrafx and
+ * CD alike: their VDC blocks are 8 bytes longer, so the tag is not where
+ * this build looks), a CD part with an older tag, or code addresses
+ * this build does not know. */
 int pceCoreStateIsOld(const void *data, size_t size)
 {
 	StateAddrs addrs;
-	size_t base, cdOffset;
+	size_t base;
 
 	if (!gameLoaded)
 		return 0;
 	base = stateBaseSize();
-	/* The CD part starts where it always has: nothing in front of it
-	 * changed size */
-	if (isCd) {
-		cdOffset = base - pceCdStateSize();
-		if (size >= cdOffset + 4
-			&& pceCdStateIsOld((const unsigned char *)data + cdOffset))
-			return 1;
-	}
-	return size >= base
-		&& !resolveStateAddrs(data, hasTokenTag(data, size, base), &addrs);
+	if (!hasTokenTag(data, size, base))
+		return 1;
+	if (isCd && !pceCdStateValid((const unsigned char *)data + (base - pceCdStateSize())))
+		return 1;
+	return !resolveStateAddrs(data, &addrs);
 }
 
 bool retro_unserialize(const void *data, size_t size)
 {
 	const unsigned char *p = data;
 	StateAddrs addrs;
-	int tokens;
-	size_t ext;
+	size_t ext = STATE_TAG_SIZE;
 
 	size_t base = stateBaseSize();
 
-	/* A CD state from before the Arcade Card block (nothing after the
-	 * base part) still loads; the card keeps what it has. */
-	if (!gameLoaded || size < base)
+	if (!gameLoaded || !hasTokenTag(p, size, base))
 		return false;
-	tokens = hasTokenTag(p, size, base);
-	ext = tokens ? STATE_TAG_SIZE : 0;
 	if (isCd && !pceCdStateValid(p + (base - pceCdStateSize())))
 		return false;
 	if (size > base + ext && !(hasAc() && pceAcStateValid(p + base + ext, size - base - ext)))
 		return false;
-	if (!resolveStateAddrs(p, tokens, &addrs)) {
+	if (!resolveStateAddrs(p, &addrs)) {
 		CeLog("pce state: code addresses from an unknown build - not loading");
 		return false;
 	}

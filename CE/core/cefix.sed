@@ -143,7 +143,7 @@ s/^(cdromState|cdromStateEnd|scsiCommandHex|dataOutPtr):/\t.global \1\n\1:/
 # state table, and the VDC2 copies). CE/core/pce_core_ce.c stores them in a state as which
 # routine/entry they are, not as addresses, which move whenever the core
 # is rebuilt with any change.
-s/^(PCEFrameLoop|h6280Exit|timerFix):/\t.global \1\n\1:/
+s/^(h6280Exit|timerFix):/\t.global \1\n\1:/
 s/^((vdcScanlineHook|vdcStateTable|VDCLineStateTable|borderScanlineHook|defaultScanlineHook)(_2)?):/\t.global \1\n\1:/
 
 # ArcadeCard.s: the Arcade Card registers (4 ports, the shift register),

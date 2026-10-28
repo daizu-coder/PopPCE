@@ -636,9 +636,9 @@ int pceCdOpenCue(const WCHAR *cuePath)
  * separate block (pceAcSaveState below).
  * The tag changes whenever cdrom.s's cdromState block changes layout:
  * "PCCD" was upstream 207dc5e's, which still had dmaOutPtr in front
- * (removed upstream in 36aea72), so everything after it moved. */
-#define CD_STATE_TAG	0x32444350		/* "PCD2" */
-#define CD_STATE_TAG_V1	0x44434350		/* "PCCD", PopPCE up to v1.2.1 */
+ * (removed upstream in 36aea72), so everything after it moved; "PCD2"
+ * (PopPCE v1.3.0) had no cdUpdCount (added upstream in 8d7e81b). */
+#define CD_STATE_TAG	0x33444350		/* "PCD3" */
 /* dataOutPtr is an address in cdrom.s, which moves with any change to
  * the core: the state holds it as this token + its offset in the block
  * (see pce_core_ce.c's tokens for the CPU and VDC blocks) */
@@ -708,16 +708,6 @@ int pceCdStateValid(const void *src)
 	get32(src, &tag);
 	return tag == CD_STATE_TAG
 		&& stateDataOutPtr((const unsigned char *)src + 4) != (unsigned char *)-1;
-}
-
-int pceCdStateIsOld(const void *src)
-{
-	int tag;
-
-	get32(src, &tag);
-	return tag == CD_STATE_TAG_V1
-		|| (tag == CD_STATE_TAG
-			&& stateDataOutPtr((const unsigned char *)src + 4) == (unsigned char *)-1);
 }
 
 int pceCdLoadState(const void *src)

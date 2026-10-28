@@ -664,6 +664,7 @@ static int LoadRomFlow(HWND hwnd)
  * PopGB / PopNES projects' own CeShowMsgBox()/MsgBoxDlgProc. */
 #define CE_MSGBOX_MAX_TEXT 128
 static wchar_t s_msgBoxText[CE_MSGBOX_MAX_TEXT];
+static int     s_msgBoxLong = 0; /* IDD_MSGBOX_LONG: word-wrapped, up to CE_MSGBOX_MAX_LINES lines */
 
 #define CE_MSGBOX_MAX_LINE  64 /* was 32; 64 like the sister PopNES/PopSNES ports, for IDD_CONFIRM_LONG's wider lines */
 #define CE_MSGBOX_MAX_LINES 4
@@ -848,6 +849,16 @@ static INT_PTR CALLBACK MsgBoxDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
         rectW = rc.right - rc.left;
         rectH = rc.bottom - rc.top;
 
+        if (s_msgBoxLong)
+        {
+            wchar_t lines[CE_MSGBOX_MAX_LINES][CE_MSGBOX_MAX_LINE];
+            int count = WrapMsgBoxLines(s_msgBoxText, rectW, lines, CE_MSGBOX_MAX_LINES);
+
+            PaintMsgBoxLines(hdc, &rc, lines, count);
+            EndPaint(hDlg, &ps);
+            return TRUE;
+        }
+
         WrapMsgBoxText(s_msgBoxText, rectW, line1, line2, CE_MSGBOX_MAX_LINE);
 
         fg = GetSysColor(COLOR_WINDOWTEXT);
@@ -894,6 +905,19 @@ static void CeShowMsgBox(HWND owner, const wchar_t *text)
 
     DialogBoxW((HINSTANCE)GetWindowLongPtrW(owner, GWLP_HINSTANCE),
                MAKEINTRESOURCEW(IDD_MSGBOX), owner, MsgBoxDlgProc);
+}
+
+/* CeShowMsgBox() in the wider IDD_MSGBOX_LONG, word-wrapped (a '\n' in
+ * text starts a new line). */
+static void CeShowMsgBoxLong(HWND owner, const wchar_t *text)
+{
+    wcsncpy(s_msgBoxText, text, CE_MSGBOX_MAX_TEXT - 1);
+    s_msgBoxText[CE_MSGBOX_MAX_TEXT - 1] = L'\0';
+
+    s_msgBoxLong = 1;
+    DialogBoxW((HINSTANCE)GetWindowLongPtrW(owner, GWLP_HINSTANCE),
+               MAKEINTRESOURCEW(IDD_MSGBOX_LONG), owner, MsgBoxDlgProc);
+    s_msgBoxLong = 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1377,16 +1401,19 @@ static int CeLoadState(HWND owner)
     }
     fclose(f);
 
-    /* A state this build can't load (pceCoreStateIsOld: a CD game's
-     * state from v1.2.1 or earlier, or code addresses from an unknown
-     * build). Say so plainly instead of the generic "incompatible save?"
-     * below, before taking any copies. */
+    /* A state this build can't load (pceCoreStateIsOld: any state from
+     * PopPCE v1.3.0 or earlier, whose core state layout differs). Say so
+     * plainly instead of the generic "incompatible save?" below, before
+     * taking any copies. The English text is too long for IDD_MSGBOX's
+     * two lines (517 px against about 206 px of Galmuri14), hence the
+     * wider box; the Japanese one breaks after its comma. */
     if (pceCoreStateIsOld(buffer, (size_t)size))
     {
         free(buffer);
-        CeLog("CeLoadState: state from an older version (old CD layout) - not loading");
-        CeShowMsgBox(owner, CeLangIsJapanese() ? L"\x53e4\x3044\x7248\x3067\x4fdd\x5b58\x3057\x305f\x30b9\x30c6\x30fc\x30c8\x306f\x8aad\x3081\x307e\x305b\x3093\x3002" /* 古い版で保存したステートは読めません。 */
-                                                : L"Can't load an old state.");
+        CeLog("CeLoadState: state from an earlier version - not loading");
+        CeShowMsgBoxLong(owner, CeLangIsJapanese()
+            ? L"\x4ee5\x524d\x306e\x7248\x3067\x4fdd\x5b58\x3057\x305f\x30b9\x30c6\x30fc\x30c8\x306f\x3001\n\x8aad\x3081\x306a\x304f\x306a\x308a\x307e\x3057\x305f\x3002" /* 以前の版で保存したステートは、(改行)読めなくなりました。 */
+            : L"This state was saved by an earlier version and can\x2019t be loaded.");
         return 0;
     }
 

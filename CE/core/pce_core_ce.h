@@ -31,11 +31,11 @@ int pceCoreProbeBiosW(const wchar_t *path);
  * retro_unserialize() takes a state of this size. */
 size_t pceCoreStateUsedSize(void);
 
-/* 1 for a state an older PopPCE saved that this build can't load: a CD
- * game's state from before the CD part's layout changed (v1.2.1 and
- * earlier), or one whose code addresses are neither tokens nor v1.2.1's
- * (see pce_core_ce.c). v1.2.1's HuCard and SuperGrafx states still load.
- * retro_unserialize() refuses these too; this lets the front end say why. */
+/* 1 for a state this build can't load: every state PopPCE v1.3.0 and
+ * earlier saved (HuCard, SuperGrafx and CD; the core's state layout
+ * changed), or one whose code addresses are not tokens this build knows
+ * (see pce_core_ce.c). retro_unserialize() refuses these too; this lets
+ * the front end say why. */
 int pceCoreStateIsOld(const void *data, size_t size);
 
 #endif
