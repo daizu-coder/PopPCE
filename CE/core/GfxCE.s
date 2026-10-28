@@ -45,7 +45,8 @@
 	.global gammaConvert
 	.global clearDirtyTiles
 	.global midFrame
-	.global endFrame
+	.global gfxEndFrame
+	.global redrawTiles
 	.global ceScanlineHook
 
 	.syntax unified
@@ -253,38 +254,22 @@ midFrame:					;@ Called at line 96
 	bx lr
 
 ;@----------------------------------------------------------------------------
-endFrame:					;@ Called just before screen end (~line 192)
+gfxEndFrame:				;@ Called from VDC.s:endFrame at the last visible line
 ;@----------------------------------------------------------------------------
-;@ Called through VDC.s:VDCDoScanline with the H6280 state live in r3-r12,
-;@ so everything is saved around the C call (14 registers keeps sp 8-byte
-;@ aligned).
-	stmfd sp!,{r0-r12,lr}
-
-	bl newX						;@ Finish the scroll log up to this line
-
-	ldr r1,=vdcBurst
-	ldrb r0,[r1]
-	cmp r0,#0
-	mov r0,#0
-	strb r0,[r1]
-
-	ldreq r0,=0x0000			;@ If burstmode, wait until next frame with enabling bgr.
-	moveq r1,#0					;@ 1?
-	moveq addy,#239
-	adr lr,vdcRet
-	beq vdcCtrl1Finish
-	bne newVDCCR
-vdcRet:
-;@--------------------------
-	ldr r0,=0x0000				;@ Display off below the last line
-	ldr r1,=vdcEndFrameLine
-	ldr r1,[r1]
-	mov addy,#239
-	bl vdcCtrl1Finish
-;@--------------------------
+;@ VDC.s:endFrame has already closed the scroll/control log (newX,
+;@ vdcCtrl1Finish). The H6280 state is live in r3-r11, so save it around
+;@ the C call. endFrame pushed lr on top of VDCDoScanline's 3 registers:
+;@ 13 more keep sp 8-byte aligned (r12 is addy, a scratch register).
+	stmfd sp!,{r0-r11,lr}
 	bl pceEndFrame				;@ pce_render.c, every line is drawn by now
+	ldmfd sp!,{r0-r11,lr}
+	bx lr
 
-	ldmfd sp!,{r0-r12,lr}
+;@----------------------------------------------------------------------------
+redrawTiles:				;@ Called from VDC.s:vblHook
+;@----------------------------------------------------------------------------
+;@ DS: converted changed VRAM into NDS tiles. pce_render.c decodes tiles
+;@ itself from DIRTYTILES, so there is nothing to do.
 	bx lr
 
 ;@----------------------------------------------------------------------------

@@ -53,11 +53,12 @@ s/^([[:space:]]*)(ldr|str)d[[:space:]]+(r[0-9]+|lr|r1[0-2]),[[:space:]]*(r[0-9]+
 # VDC.s state that CE/core/pce_render.c reads but upstream does not export:
 # display width, and the not yet logged scroll / VDC CR values (the
 # per-line log in scrollBuff is only filled up to vdcScrollLine /
-# vdcCtrl1Line, later lines use the current scrollOld / vdcCtrl1Old).
+# vdcCtrl1Line, later lines use the current scrollOld / vdcCtrl1Old), and
+# vdcBurst (VDC CR bits 6-7 at the start of the frame, 0 = display off).
 # The _2 forms are the SuperGrafx's second VDC (core/mkvdc2.sh renames
 # every VDC.s label before this script runs). vdcStat and vdcRegPtrL are
 # for core/SgxCE.s (shared IRQ line, ST1/ST2 target).
-s/^((vdcHDW|scrollOld|vdcScrollLine|vdcCtrl1Old|vdcCtrl1Line|vdcStat|vdcRegPtrL)(_2)?):/\t.global \1\n\1:/
+s/^((vdcHDW|scrollOld|vdcScrollLine|vdcCtrl1Old|vdcCtrl1Line|vdcBurst|vdcStat|vdcRegPtrL)(_2)?):/\t.global \1\n\1:/
 
 # Per-line rendering: before VDC.s moves on to the next scanline, draw
 # the one that just finished (CE/core/GfxCE.s:ceScanlineHook, which saves
@@ -116,8 +117,9 @@ s/^([[:space:]]*)strbpl r3,\[r6,r2,lsr#7\].*$/&\n\1strbpl r3,[r6,#0x200]/
 # SuperGrafx (CE/core/SgxCE.s): a second VDC (VDC.s copied by
 # core/mkvdc2.sh) and the VPC. Each entry below checks SgxCE.s:ceSgxOn
 # first and goes straight to the upstream routine on a plain PC Engine.
-#   cpu.s: both VDCs step every scanline and start every frame
-s/^([[:space:]]*)bl (VDCDoScanline|newFrame)([[:space:]].*)?$/\1bl ceSgx_\2\3/
+#   cpu.s: both VDCs step every scanline (each starts its own frame from
+#   its line state table, VDC.s:frameEndHook)
+s/^([[:space:]]*)bl (VDCDoScanline)([[:space:]].*)?$/\1bl ceSgx_\2\3/
 #   Cart.s bank tables, for pce_core_ce.c to map the SGX RAM banks
 s/^(RDMEMTBL_|WRMEMTBL_):/\t.global \1\n\1:/
 #   io.s $0000-$03FF: VDC1 / VPC / VDC2 by address bits 3-4
@@ -137,11 +139,11 @@ s/^([[:space:]]*)b calcHDW[[:space:]]*$/\1b ceSgx_calcHDW/
 s/^(cdromState|cdromStateEnd|scsiCommandHex|dataOutPtr):/\t.global \1\n\1:/
 
 # Code and data addresses that the CPU and VDC state blocks hold (H6280.s's
-# timeout handler, VDC.s's scanline hooks and line state table, and the
-# VDC2 copies). CE/core/pce_core_ce.c stores them in a state as which
+# timeout handlers h6280Exit / timerFix, VDC.s's scanline hooks and line
+# state table, and the VDC2 copies). CE/core/pce_core_ce.c stores them in a state as which
 # routine/entry they are, not as addresses, which move whenever the core
 # is rebuilt with any change.
-s/^(PCEFrameLoop|timerFix):/\t.global \1\n\1:/
+s/^(PCEFrameLoop|h6280Exit|timerFix):/\t.global \1\n\1:/
 s/^((vdcScanlineHook|vdcStateTable|VDCLineStateTable|borderScanlineHook|defaultScanlineHook)(_2)?):/\t.global \1\n\1:/
 
 # ArcadeCard.s: the Arcade Card registers (4 ports, the shift register),
@@ -158,14 +160,6 @@ s/^(acPort0):/\t.global \1\n\1:/
 # the read (the CD -> ADPCM DMA).
 s/^([[:space:]]*)strb r1,adpcmStatus[[:space:]]*$/\1strb r1,adpcmStatus\n\1and r0,r0,r1/
 
-# VBL and a raster compare on the same line (VDC.s and its VDC2 copy).
-# At line 240 vblHook sets the VBL status bit and the scanline hook then
-# sets the RCR bit, both before the CPU runs, so an IRQ handler that tests
-# VBL first (Kakutou Haou Densetsu Algunos: its raster chain ends with an
-# RCR at line 240 that re-arms line 39) never sees that RCR, the chain
-# stops and the split screen shows the wrong part of the BG. On the real
-# chip the RCR comes first, a little before VBL. So when they coincide,
-# vblHook leaves VBL primed (marked with bit 0) and the scanline hook
-# raises it on the next line, after the CPU has had the RCR alone.
-s/^vblHook(_2)?:.*$/&\n\tldr r0,vdcRasterCompareCPU\1\n\tcmp r5,r0\n\tbne 81f\n\tldrb r0,vdcCtrl1\1\n\ttst r0,#0x04\n\tbeq 81f\n\tldrb r0,vdcPrimedVBl\1\n\tcmp r0,#0\n\torrne r0,r0,#0x01\n\tstrbne r0,vdcPrimedVBl\1\n\tbx lr\n81:/
-s/^noRasterIrq(_2)?:.*$/&\n\tldrb r0,vdcPrimedVBl\1\n\ttst r0,#0x01\n\tbeq 82f\n\tldr r2,vdcRasterCompareCPU\1\n\tcmp r5,r2\n\tbeq 82f\n\tmov r2,#0\n\tstrb r2,vdcPrimedVBl\1\n\tldrb r2,vdcStat\1\n\torr r2,r2,#0x20\n\tstrb r2,vdcStat\1\n\tsetIrqPin VDCIRQ_F\n82:/
+# (VBL and a raster compare on the same line, which broke Kakutou Haou
+# Densetsu Algunos's split screen, is fixed upstream since #27 / e9dc2d5:
+# the VBlank line's raster IRQ now comes 90 cycles before VBL.)

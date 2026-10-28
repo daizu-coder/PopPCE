@@ -20,7 +20,8 @@
  * Each line is drawn with VRAM as it is when the line ends, so games
  * that stream sprite patterns while the screen is displayed (Street
  * Fighter II) show correctly; scroll and BG/sprite enable are per line.
- * The palette is taken once per frame (VCE.s:paletteTxAll at newFrame),
+ * The palette is taken once per frame (VCE.s:paletteTxAll, called from
+ * VDC.s:frameEndHook before line 0),
  * like the DS version. The SATB only changes during vblank, so it is
  * parsed once, at line 0.
  *
@@ -53,7 +54,7 @@ extern uint32_t vdcEndFrameLine;
 /* VDC.s: horizontal offset that VDC.s adds to scroll X for the DS
  * screen (depends on HDS and the pixel clock) */
 extern int32_t hOffset;
-/* VDC.s: bit 6-7 of VDC CR at newFrame; 0 = display off for the frame */
+/* VDC.s: bit 6-7 of VDC CR at frameEndHook; 0 = display off for the frame */
 extern uint8_t vdcBurst;
 /* Made global by CE/core/cefix.sed: */
 /* VDC.s: HDW register (display width in 8-pixel units - 1) */

@@ -40,7 +40,6 @@
 	.global vdc2ScalingFit
 
 	.global ceSgx_VDCDoScanline
-	.global ceSgx_newFrame
 	.global ceSgx_VDC_R
 	.global ceSgx_VDC_W
 	.global ceSgx_VDC0W
@@ -63,16 +62,6 @@ ceSgx_VDCDoScanline:		;@ cpu.s frame loop. Out: r0 = VDC1's result
 	bl VDCDoScanline_2
 	ldmfd sp!,{r0,lr}
 	bx lr
-;@----------------------------------------------------------------------------
-ceSgx_newFrame:				;@ cpu.s, before line 0
-;@----------------------------------------------------------------------------
-	ldrb r0,ceSgxOn
-	cmp r0,#0
-	beq newFrame
-	str lr,[sp,#-8]!
-	bl newFrame_2
-	ldr lr,[sp],#8
-	b newFrame
 ;@----------------------------------------------------------------------------
 ceSgx_calcHDW:				;@ VCE.s: new dot clock / 262 or 263 lines
 ;@----------------------------------------------------------------------------

@@ -32,7 +32,15 @@ trap 'rm -f "$rename"' EXIT
 #   BG_SCALING_TBL/_TO_FIT            calcVBL's DS scaling values: dummies
 #   setVDPMode                        sets yStart from VDC1's timing: no-op
 #   paletteTxAll                      the palette is VCE's, VDC1 does it
-#   endFrame                          VDC1's end of frame (pceEndFrame): no-op
+#   gfxEndFrame                       VDC1's end of frame (pceEndFrame): no-op
+#   redrawTiles                       DS tile conversion: no-op
+#
+# vblHook takes CPU time ("sub cycles,cycles,...") so the raster IRQ of
+# the VBlank line comes 90 cycles before VBlank. Both VDCs share the one
+# CPU, so only VDC1 may do that: VDC2's copies of those two lines (the
+# only ones that subtract a "<<10" amount; eatcycles and the block
+# transfer macros from H6280mac.h also subtract cycles and must stay)
+# are dropped.
 sed -E -f "$rename" "$pre" | sed -E \
 	-e 's/\bpceVRAM\b/pceVRAM2/g' \
 	-e 's/\bDIRTYTILES\b/DIRTYTILES2/g' \
@@ -40,5 +48,6 @@ sed -E -f "$rename" "$pre" | sed -E \
 	-e 's/\bclearDirtyTiles\b/clearDirtyTiles2/g' \
 	-e 's/\bBG_SCALING_TBL\b/vdc2ScalingTbl/g' \
 	-e 's/\bBG_SCALING_TO_FIT\b/vdc2ScalingFit/g' \
-	-e 's/\b(setVDPMode|paletteTxAll|endFrame)\b/ceNopFunc/g' \
+	-e 's/\b(setVDPMode|paletteTxAll|gfxEndFrame|redrawTiles)\b/ceNopFunc/g' \
+	-e '/^[[:space:]]*sub cycles,cycles,(r1,lsl#10|#90<<10)[[:space:];@]/d' \
 	| sed -E -f "$cefix"
