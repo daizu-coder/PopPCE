@@ -26,6 +26,9 @@ void pceCdSaveState(void *dest);
 /* 1 if src starts with the CD part's tag (checked before anything is
  * loaded) */
 int pceCdStateValid(const void *src);
+/* 1 for a CD part this build can't load: an older layout (its tag), or
+ * an address in it that is no token (see pce_cd_ce.c) */
+int pceCdStateIsOld(const void *src);
 int pceCdLoadState(const void *src);
 
 /* The Arcade Card part (registers and RAM, all-zero 16KB blocks left out),

@@ -1377,6 +1377,19 @@ static int CeLoadState(HWND owner)
     }
     fclose(f);
 
+    /* A state this build can't load (pceCoreStateIsOld: a CD game's
+     * state from v1.2.1 or earlier, or code addresses from an unknown
+     * build). Say so plainly instead of the generic "incompatible save?"
+     * below, before taking any copies. */
+    if (pceCoreStateIsOld(buffer, (size_t)size))
+    {
+        free(buffer);
+        CeLog("CeLoadState: state from an older version (old CD layout) - not loading");
+        CeShowMsgBox(owner, CeLangIsJapanese() ? L"\x53e4\x3044\x7248\x3067\x4fdd\x5b58\x3057\x305f\x30b9\x30c6\x30fc\x30c8\x306f\x8aad\x3081\x307e\x305b\x3093\x3002" /* 古い版で保存したステートは読めません。 */
+                                                : L"Can't load an old state.");
+        return 0;
+    }
+
     /* Games with save RAM only (CD games - the BRAM; HuCards have none
      * here): keep the game as it is now, so a Cancel in the in-game-save
      * warning below (or a failed load) can put it back, and keep the

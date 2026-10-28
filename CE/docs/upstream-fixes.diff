@@ -1,15 +1,6 @@
 --- a/source/cdrom.s
 +++ b/source/cdrom.s
-@@ -301,6 +301,8 @@
- 	ldrb r0,adDma
- 	tst r0,#0x03
- 	ldrne r0,dataLen
-+	ldrbne r1,adpcmDmaOn
-+	orrne r0,r0,r1
- 	cmpne r0,#0
- 	movne r0,#0xA00				;@ 2048*(75/60). CD frames/TV frames.
- 	blne AdpcmDMA
-@@ -719,6 +721,7 @@
+@@ -727,6 +727,7 @@
  	bic r1,r0,#0x80
  	biceq r1,r1,#0x04
  	strb r1,adpcmStatus

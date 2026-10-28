@@ -35,6 +35,9 @@ extern const CUETrackInfo *nextTrack(uint32_t prevFileSize);
 
 /* cdrom.s: the drive's state block (made global by CE/core/cefix.sed) */
 extern unsigned char cdromState[], cdromStateEnd[];
+/* in that block: the next response byte, always inside the block itself
+ * (scsiResponse) */
+extern unsigned char dataOutPtr[];
 /* Cart.s: ADPCM RAM (64KB), then Super CD-ROM RAM (192KB) and CD-ROM RAM
  * (64KB), back to back */
 extern unsigned char CD_PCM_RAM[];
@@ -447,10 +450,10 @@ void pceCdDebugFrame(void)
 	CeLog("pce cd state: scsi %02X cmd %02X dataLen %X seek %u; irqReq %02X irqMask %02X;"
 		" adCtrl %02X adDma %02X adStat %02X adDmaOn %02X adRate %02X adPtr %08X adLen %08X adWr %08X adRd %08X;"
 		" fade %02X playMode %u cdAudio %u",
-		CD_U8(0x4C), CD_U8(0x5F), CD_U32(0x0C), CD_U32(0x1C), CD_U8(0x50), CD_U8(0x4F),
-		CD_U8(0x55), CD_U8(0x54), CD_U8(0x58), CD_U8(0x59), CD_U8(0x56),
-		CD_U32(0x20), CD_U32(0x24), CD_U32(0x28), CD_U32(0x2C),
-		CD_U8(0x5A), CD_U8(0x5B), CD_U8(0x5C));
+		CD_U8(0x48), CD_U8(0x5B), CD_U32(0x08), CD_U32(0x18), CD_U8(0x4C), CD_U8(0x4B),
+		CD_U8(0x51), CD_U8(0x50), CD_U8(0x54), CD_U8(0x55), CD_U8(0x52),
+		CD_U32(0x1C), CD_U32(0x20), CD_U32(0x24), CD_U32(0x28),
+		CD_U8(0x56), CD_U8(0x57), CD_U8(0x58));
 
 	memset(counts, 0, sizeof(counts));
 	frames = other = 0;
@@ -630,8 +633,16 @@ int pceCdOpenCue(const WCHAR *cuePath)
 /* --- save state ------------------------------------------------------------ */
 /* The drive state block, the CD RAMs, and where the reader is in the
  * .bin (upstream's pcePackState has no CD part). The Arcade Card is a
- * separate block (pceAcSaveState below). */
-#define CD_STATE_TAG	0x44434350		/* "PCCD" */
+ * separate block (pceAcSaveState below).
+ * The tag changes whenever cdrom.s's cdromState block changes layout:
+ * "PCCD" was upstream 207dc5e's, which still had dmaOutPtr in front
+ * (removed upstream in 36aea72), so everything after it moved. */
+#define CD_STATE_TAG	0x32444350		/* "PCD2" */
+#define CD_STATE_TAG_V1	0x44434350		/* "PCCD", PopPCE up to v1.2.1 */
+/* dataOutPtr is an address in cdrom.s, which moves with any change to
+ * the core: the state holds it as this token + its offset in the block
+ * (see pce_core_ce.c's tokens for the CPU and VDC blocks) */
+#define CD_PTR_TOKEN	0xCE5A0400u
 
 size_t pceCdStateSize(void)
 {
@@ -656,9 +667,14 @@ void pceCdSaveState(void *dest)
 	unsigned char *p = dest;
 	size_t n = cdromStateEnd - cdromState;
 	int pos = cdPos;
+	unsigned char *out = *(unsigned char **)dataOutPtr;
 
 	p = put32(p, CD_STATE_TAG);
 	memcpy(p, cdromState, n);
+	if (out >= cdromState && out < cdromStateEnd)
+		put32(p + (dataOutPtr - cdromState), (int)(CD_PTR_TOKEN + (out - cdromState)));
+	else if (out)
+		CeLog("pce cd: dataOutPtr %p outside the drive state, saved as it is", out);
 	p += n;
 	memcpy(p, CD_PCM_RAM, CD_RAM_TOTAL);
 	p += CD_RAM_TOTAL;
@@ -669,12 +685,39 @@ void pceCdSaveState(void *dest)
 	memcpy(p, cdBuffer, sizeof(cdBuffer));
 }
 
+/* The drive's next response byte for this build: NULL for none, or
+ * (unsigned char *)-1 when the state's value is no token */
+static unsigned char *stateDataOutPtr(const unsigned char *block)
+{
+	int v;
+	unsigned off;
+
+	get32(block + (dataOutPtr - cdromState), &v);
+	off = (unsigned)v - CD_PTR_TOKEN;
+	if (!v)
+		return NULL;
+	if (off < (unsigned)(cdromStateEnd - cdromState))
+		return cdromState + off;
+	return (unsigned char *)-1;
+}
+
 int pceCdStateValid(const void *src)
 {
 	int tag;
 
 	get32(src, &tag);
-	return tag == CD_STATE_TAG;
+	return tag == CD_STATE_TAG
+		&& stateDataOutPtr((const unsigned char *)src + 4) != (unsigned char *)-1;
+}
+
+int pceCdStateIsOld(const void *src)
+{
+	int tag;
+
+	get32(src, &tag);
+	return tag == CD_STATE_TAG_V1
+		|| (tag == CD_STATE_TAG
+			&& stateDataOutPtr((const unsigned char *)src + 4) == (unsigned char *)-1);
 }
 
 int pceCdLoadState(const void *src)
@@ -687,6 +730,7 @@ int pceCdLoadState(const void *src)
 	if (tag != CD_STATE_TAG)
 		return 0;
 	memcpy(cdromState, p, n);
+	*(unsigned char **)dataOutPtr = stateDataOutPtr(p);
 	p += n;
 	memcpy(CD_PCM_RAM, p, CD_RAM_TOTAL);
 	p += CD_RAM_TOTAL;

@@ -132,20 +132,21 @@ n
 s/^([[:space:]]*)b calcHDW[[:space:]]*$/\1b ceSgx_calcHDW/
 }
 
-# cdrom.s: the drive's state block, saved by CE/core/pce_cd_ce.c
-s/^(cdromState|cdromStateEnd|scsiCommandHex):/\t.global \1\n\1:/
+# cdrom.s: the drive's state block, saved by CE/core/pce_cd_ce.c.
+# dataOutPtr, inside it, points into the block itself (scsiResponse).
+s/^(cdromState|cdromStateEnd|scsiCommandHex|dataOutPtr):/\t.global \1\n\1:/
+
+# Code and data addresses that the CPU and VDC state blocks hold (H6280.s's
+# timeout handler, VDC.s's scanline hooks and line state table, and the
+# VDC2 copies). CE/core/pce_core_ce.c stores them in a state as which
+# routine/entry they are, not as addresses, which move whenever the core
+# is rebuilt with any change.
+s/^(PCEFrameLoop|timerFix):/\t.global \1\n\1:/
+s/^((vdcScanlineHook|vdcStateTable|VDCLineStateTable|borderScanlineHook|defaultScanlineHook)(_2)?):/\t.global \1\n\1:/
 
 # ArcadeCard.s: the Arcade Card registers (4 ports, the shift register),
 # saved by CE/core/pce_cd_ce.c. Upstream's ".global ac_port0" names no label.
 s/^(acPort0):/\t.global \1\n\1:/
-
-# cdrom.s:updateCDROM runs the CD -> ADPCM RAM DMA 0xA00 bytes a frame, but
-# only while dataLen != 0. When a transfer ends exactly on a frame's quota
-# (e.g. 15 sectors = 12 x 0xA00), AdpcmDMA never gets to dmaEnd, so
-# adpcmDmaOn stays set, $180C keeps reporting "busy writing" and the game
-# waits forever (Garou Densetsu Special). Also call it while adpcmDmaOn is
-# still set: dmaLoop then sees the SCSI status phase and runs dmaEnd.
-s/^([[:space:]]*)ldrne r0,dataLen[[:space:]]*$/\1ldrne r0,dataLen\n\1ldrbne r1,adpcmDmaOn\n\1orrne r0,r0,r1/
 
 # cdrom.s:CD0C_R ($180C) returns the ADPCM status as it was before the read:
 # after a CPU write to $180A (or read), the first read of $180C still says
