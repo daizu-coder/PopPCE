@@ -1406,13 +1406,14 @@ static int CeLoadState(HWND owner)
      * plainly instead of the generic "incompatible save?" below, before
      * taking any copies. The English text is too long for IDD_MSGBOX's
      * two lines (517 px against about 206 px of Galmuri14), hence the
-     * wider box; the Japanese one breaks after its comma. */
+     * wider box; the Japanese one breaks after its comma (285 px and
+     * 255 px, too wide for IDD_MSGBOX as well). */
     if (pceCoreStateIsOld(buffer, (size_t)size))
     {
         free(buffer);
         CeLog("CeLoadState: state from an earlier version - not loading");
         CeShowMsgBoxLong(owner, CeLangIsJapanese()
-            ? L"\x4ee5\x524d\x306e\x7248\x3067\x4fdd\x5b58\x3057\x305f\x30b9\x30c6\x30fc\x30c8\x306f\x3001\n\x8aad\x3081\x306a\x304f\x306a\x308a\x307e\x3057\x305f\x3002" /* 以前の版で保存したステートは、(改行)読めなくなりました。 */
+            ? L"\x4ee5\x524d\x306e\x30d0\x30fc\x30b8\x30e7\x30f3\x3067\x4fdd\x5b58\x3057\x305f\x30b9\x30c6\x30fc\x30c8\x306f\x3001\n\x3053\x306e\x30d0\x30fc\x30b8\x30e7\x30f3\x3067\x306f\x8aad\x307f\x8fbc\x3081\x307e\x305b\x3093\x3002" /* 以前のバージョンで保存したステートは、(改行)このバージョンでは読み込めません。 */
             : L"This state was saved by an earlier version and can\x2019t be loaded.");
         return 0;
     }
