@@ -102,19 +102,10 @@ Some dumb info about the emulator...
 
 ## Games
 
-* Benkei Gaiden, crashes in intro.
-* Cadash, vertical flickering alot.
 * Chikudenya Toubee, hangs at start.
-* Dragon Egg!, black screen at boot.
-* Dragon Saber, glitches after second boss.
 * Fighting Run, too many bitplanes.
-* Gaia no Monsho, black screen at boot.
-* Hisou Kihei Serd, black screen at boot.
-* Power Tennis, crashes in intro.
-* Rock-On, garbage on continue screen.
-* Toy Shop Boys, hangs early in game.
-* Turrican, hangs at continue.
-* Volfied, "pointer" error, when you finish a level.
+* Toy Shop Boys, counting is indefinitive at stage end.
+* Volfied, counting is indefinitive at stage end.
 
 ## Credits
 

@@ -1,16 +1,18 @@
 
 NitroGrafx To Do:
 -----------------
+	Savestates for CD games as well. Write/load every part by itself.
+	Fix decimal mode! Both Toy Shop Boys & Volfied seem to be affected by this.
+	irq2Write should check for IRQ directly after.
 	Add support for multiple files for CD.
 	Add ADPCM fade, bit1 is CD/ADPCM.
-	Make sure CD audio is silent when no audio tracks are present.
 	Exile needs 2kB BRAM only? Add separate save files for each (CD) game.
+	Add support for Teenokoe Memory Bank. See Ares/MesenCE.
 
 	Turbo switches? Gun Boat. http://www.gamefaqs.com/tg16/588987-gunboat/faqs/27685
-	Savestates for CD games as well. Write/load every part by itself.
 	Fix TAM/TMA #$00
-	Check the Games Express games. Data in track 1 is the problem?
-		Or should their BIOS lay "over" the normal?
+	Check the Games Express games.
+		Should their BIOS lay "over" the normal?
 		Is both the normal BIOS and GE loaded at the same time?
 	Fix V flicker position (all games with statusbar etc.). Done?
 
@@ -33,51 +35,55 @@ Graphic:
 	Optimise tile(map), rendering.
 
 Sound:
+	Add pre counting step for better sound?
 	PSG waveforms are not signed, optimize! Is this different between revisions?
+	Optimise. Lower quality?
 	Check sound levels, figure out correct gain per level. Not -1.5dB per step.
 	PSG volume is only updated at 2kHz?
-	Only load 2.5k per frame before music starts playing.
 	Load variable number of bytes?
 	Louder CD-sound?
-	Optimise. Lower quality?
-	Add LFO emulation? (Hanii in the Sky, Juuouki, and Flash Hiders use LFO).
+	Add LFO emulation? (Hanii in the Sky, Juuouki, Volfied? and Flash Hiders use LFO).
+
+CPU:
+	Make list of all memory reads (mem, ram , io, sram).
+	Decimal mode still broken?
 
 Games:
-	Benkei Gaiden, crashes in intro.
-	Cadash. Vertical flickering alot.
 	Chikudenya Toubee, hangs at start.
-	Dragon Egg!, black screen at boot.
 	Fighting Run, too many bitplanes.
-	Gaia no Monsho, black screen at boot. Timer handling. H6280.s row 1826.
-	Hisou Kihei Serd, black screen at boot.
-	Power Tennis, crashes in intro.
-	Rock-On, garbage on continue screen.
-	Toy Shop Boys, hangs early in game.
-	Turrican, hangs at continue.
+	Order of The Griffon, selection sprite has wrong h-pos.
+	Toy Shop Boys, counting is indefinitive at stage end. (decimal mode?)
 	Volfied, a strange "pointer" error, when you finish a level, the bonus countdown is infinite
 and the background sine-wave sound stays locked on a single note
 
 Games Fixed:
+	Air Zonk, no control/no enemies at level start. (VBlank & Raster IRQ)
+	Benkei Gaiden, crashes in intro. (VBlank & Raster IRQ)
+	Cadash. Vertical flickering alot. (VBlank & Raster IRQ)
 	Champions Forever Boxing. Not working on CDROM?
 	College Pro Baseball '88, music no graphics. SprDMA (SprDMA IRQ?).
 	College Pro Baseball '90, music no graphics. SprDMA (SprDMA IRQ?).
 	Coryoon Child of dragon, no scrolling sometime?
+	Dragon Egg!, black screen at boot. (VBlank & Raster IRQ)
+	Dragon Saber, glitches after second boss. (VBlank & Raster IRQ)
+	Gaia no Monsho, black screen at boot. (Timer IRQ vs TIA leaving cycles at minus)
 	Gunboat, tanks the performance completely. Timer counting was wrong.
+	Hisou Kihei Serd, black screen at boot. (VBlank & Raster IRQ)
 	Klax, tanks the performance completely. Timer counting was wrong.
 	Naxat Open, can't make a shot. SprDMA (SprDMA IRQ?).
 	Night Creatures, no sprites. No cycles for Sprite DMA handling.
+	Pc Denjin - Punkic Cyborgs (J), locks up at level start. (VBlank & Raster IRQ)
+	Power Tennis, crashes in intro. (VBlank & Raster IRQ)
+	Rock-On, garbage on continue screen (? probably timing/IRQ).
 	Space Harrier, no sprites. No cycles for Sprite DMA handling.
 	Takeda Shingen, graphics is corrupt. VRAM DMA length is val+1.
 	Tatsujin, sprites freeze after death. SprDMA.
+	Toy Shop Boys, hangs early in game. (VBlank & Raster IRQ)
+	Turrican, hangs at continue. (Timer/Raster IRQ (cycles minus?)).
 	TV Sports Football, hangs in game. SprDMA.
 	TV Sports Ice Hockey, no sprites. SprDMA.
 	Valkyrie no Densetsu, hangs in intro. SprDMA.
 	Volfied, hangs just before game starts. SprDMA.
-
-CPU:
-	Move rom_map to H6280 so that jmp becomes even faster.
-	Make list of all memory reads (mem, ram , io, sram).
-	Decimal mode still broken?
 
 Tests:
 	clktest counts 4x cycles, have 4 banks from the same page before loop.

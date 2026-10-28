@@ -314,7 +314,6 @@ CueSheet *readCue(const char *cuefile) {
 	CueSheet *cs = NULL;
 
 	if (NULL == (f = fopen(cuefile, "r"))) {
-		//err_sys("Could not open file \"%s\" for reading", cuefile);
 		return NULL;
 	}
 	if ((cs = (CueSheet *)malloc(sizeof(CueSheet))) == NULL) {
@@ -322,9 +321,12 @@ CueSheet *readCue(const char *cuefile) {
 		return NULL;
 	}
 
-	char *cueString = malloc(0x2000);
-	memset(cueString, 0, 0x2000);
-	fread(cueString, 1, 0x2000, f);
+	fseek(f, 0, SEEK_END);
+	int cueSize = ftell(f) + 1;
+	fseek(f, 0, SEEK_SET);
+	char *cueString = malloc(cueSize);
+	memset(cueString, 0, cueSize);
+	fread(cueString, 1, cueSize, f);
 	fclose(f);
 
 	startParser(cueString);
@@ -334,19 +336,19 @@ CueSheet *readCue(const char *cuefile) {
 	int wavDataOfs = 0;
 	cs->file[0] = 0;
 	while ((trackInf = nextTrack(prevFileSize)) != NULL) {
+		wavDataOfs = 0;
 		const char *fName = trackInf->filename;
-		if (cs->file[0] != 0 && strcmp(cs->file, fName)) {
-			prevFileSize = 0;
+		if (strcmp(cs->file, fName)) {
+			prevFileSize = 0x200000;		// 2MB if no file found
 			f = fopen(fName, "r");
 			if (f != NULL) {
 				fseek(f, 0, SEEK_END);
 				prevFileSize = ftell(f);
-				wavDataOfs = 0;
+				fclose(f);
 				if (trackInf->fileMode == FILE_TYPE_WAVE) {
 					wavDataOfs = 0x2C; // Calculate header size correctly!
 					prevFileSize -= wavDataOfs;
 				}
-				fclose(f);
 			}
 		}
 		if (cs->file[0] == 0 && trackInf->trackMode != TRK_MODE_AUDIO) {
@@ -354,7 +356,12 @@ CueSheet *readCue(const char *cuefile) {
 		}
 		TrackSpec *ts = &cs->tracks[i];
 		ts->mode = trackInf->trackMode;
-		ts->start = trackInf->fileOffset + wavDataOfs;
+		if (strcmp(cs->file, fName)) {
+			ts->start = trackInf->fileOffset + wavDataOfs + 0x30000000; // Silence audio tracks
+		}
+		else {
+			ts->start = trackInf->fileOffset + wavDataOfs;
+		}
 		ts->LBA = trackInf->dataStart;
 		i++;
 	}

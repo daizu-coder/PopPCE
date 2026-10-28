@@ -19,7 +19,6 @@
 	.global vdcWriteAdr			;@ Only used for hacks
 	.global vdcScrollMask
 	.global vdcScroll
-	.global vdcBurst
 	.global vdcEndFrameLine
 	.global vdcLastScanline
 	.global vdcSpriteRam
@@ -35,10 +34,6 @@
 	.global VDC_W
 	.global VDC0W
 
-	.global newFrame
-	.global newX
-	.global newVDCCR
-	.global vdcCtrl1Finish
 	.global calcVBL
 	.global calcHDW
 
@@ -105,7 +100,6 @@ vramLoop:
 	str r0,vdcLastScanline
 	mov r0,#239
 	str r0,vdcEndFrameLine
-	str r0,vdcVBlLine
 	add r0,r0,#1
 	str r0,vdcVBlEndLine
 
@@ -148,7 +142,6 @@ VDCLineStateTable:
 	.long 0, fakeFrame			;@ vdcZeroLine
 	.long 96, midFrame
 	.long 239, endFrame			;@ vdcEndFrameLine
-	.long 239, startVbl			;@ vdcVBlLine
 	.long 240, vblHook			;@ vdcVBlEndLine
 //	.long 260, secondLastScanline	;@ vdc2ndLastScanline
 	.long 261, frameEndHook		;@ vdcLastScanline
@@ -186,6 +179,7 @@ borderScanlineHook:
 	ldrbne r1,vdcDoVramDMA
 	cmpne r1,#0
 	blne vramDMA
+	// Fallthrough
 ;@----------------------------------------------------------------------------
 defaultScanlineHook:
 ;@----------------------------------------------------------------------------
@@ -203,34 +197,47 @@ defaultScanlineHook:
 	setIrqPin VDCIRQ_F
 noRasterIrq:
 
+	ldr r1,vdcEndFrameLine
+	cmp r1,r5
 	mov r0,#0
+	moveq r0,#1
 	ldmfd sp!,{r4,r5,pc}
 ;@----------------------------------------------------------------------------
-
-frameEndHook:
-	bl mirrorPCE
-	mov r0,#0
-	str r0,vdcNextLineChange
-	ldr r0,=vdcStateTable+4
-	str r0,vdcLineState
-
-	mov r0,#1
-	ldmfd sp!,{r4,r5,pc}
-
 fakeFrame:
+;@----------------------------------------------------------------------------
 	ldrb r0,vdcBurst
 	cmp r0,#0
 	ldrne r0,=defaultScanlineHook
 	strne r0,vdcScanlineHook
 	bx lr
 
+;@----------------------------------------------------------------------------
+endFrame:					;@ Called just before visible screen end	(r0-r2 safe to use)
+;@----------------------------------------------------------------------------
+	stmfd sp!,{lr}
 
-;@----------------------------------------------------------------------------
+	bl newX
+
+	ldrb r0,vdcBurst
+	cmp r0,#0
+
+	adr lr,vdcRet
+	bne newVDCCR
+//	mov r0,#0					;@ If burstmode, wait until next frame with enabling bgr.
+	mov r1,#0					;@ 1?
+	mov addy,#242
+	b vdcCtrl1Finish
+vdcRet:
+;@--------------------------
+	mov r0,#0					;@ WININBUFF
+	mov r1,r5
+	mov addy,#242
+	bl vdcCtrl1Finish
+	bl gfxEndFrame
+
 startVbl:
-;@----------------------------------------------------------------------------
 	ldr r0,=borderScanlineHook
 	str r0,vdcScanlineHook
-
 	ldrb r0,vdcDoSprDMA
 	ldrb r1,vdcDMACR
 	orrs r0,r0,r1,lsr#4			;@ Add Spr DMA repetition
@@ -238,39 +245,42 @@ startVbl:
 	movne r0,#0x100
 	str r0,vdcSatLen
 
+	ldmfd sp!,{lr}
+	bx lr
+;@----------------------------------------------------------------------------
+vblHook:					;@ End of visible screen
+;@----------------------------------------------------------------------------
+	ldrb r2,vdcPrimedVBl
+	eors r2,r2,#0x20			;@ VBlank bit
+	strb r2,vdcPrimedVBl		;@ Clear byte.
+	beq vblHook2nd
+	ldr r1,=(455-90)
+	sub cycles,cycles,r1,lsl#10	;@ Assume high speed.
+
+	bl redrawTiles
+
+	;@ Do this scanline again
+	sub r1,r5,#1
+	str r1,scanline
+	str r5,vdcNextLineChange
+	ldr r1,vdcLineState
+	sub r1,r1,#8
+	str r1,vdcLineState
+	ldr pc,vdcScanlineHook		;@ We don't want to run ourself straight away.
+
+vblHook2nd:
+	sub cycles,cycles,#90<<10	;@ Assume high speed.
 	ldrb r0,vdcCtrl1
 	tst r0,#0x08				;@ vbl IRQ?
-	bxeq lr
-	mov r0,#0x20				;@ VBlank bit
-	strb r0,vdcPrimedVBl
-	bx lr
-
-;@----------------------------------------------------------------------------
-vblHook:					;@ 193/240
-;@----------------------------------------------------------------------------
-	mov r0,#0
-	ldrb r2,vdcPrimedVBl
-	strb r0,vdcPrimedVBl		;@ Clear byte.
+	beq noRasterIrq
 	ldrb r0,vdcStat
-	orrs r0,r0,r2				;@ VBlank bit
+	orr r0,r0,#0x20				;@ VBlank bit
 	strb r0,vdcStat				;@ VBL irq.
-	bxeq lr
 	setIrqPin VDCIRQ_F
-	bx lr
+	b noRasterIrq
 ;@----------------------------------------------------------------------------
-newFrame:					;@ Called before line 0
+frameEndHook:
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{lr}
-
-;@--------------------------
-	mov r0,#-1
-	str r0,scanline				;@ Reset scanline count
-	mov r0,#0
-	str r0,vdcScrollLine
-	str r0,vdcCtrl1Line
-;@	strb r0,vdcstat				;@ VBL clear, sprite0 clear, Tatsujin needs this.
-;@	strb r0,irqPending
-
 
 	ldrb r0,vdcCtrl1
 	and r0,r0,#0xC0				;@ Burst mode?
@@ -281,10 +291,21 @@ newFrame:					;@ Called before line 0
 	ldr r1,=scrollOld
 	strh r0,[r1,#2]
 
+	stmfd sp!,{r3}
 	bl paletteTxAll
+	ldmfd sp!,{r3}
 
-	ldmfd sp!,{lr}
-	bx lr
+	bl mirrorPCE
+	mov r0,#0
+	str r0,vdcNextLineChange
+	str r0,vdcScrollLine
+	str r0,vdcCtrl1Line
+	ldr r0,=vdcStateTable+4
+	str r0,vdcLineState
+	mov r0,#-1
+	str r0,scanline				;@ Reset scanline count
+
+	ldr pc,vdcScanlineHook		;@ We don't want to run ourself straight away.
 
 ;@----------------------------------------------------------------------------
 //	.section .itcm, "ax", %progbits
@@ -311,9 +332,11 @@ _VDC0R:						;@ VDC Register
 	cmp r1,#0
 	bxeq lr
 
+	ldrb r1,vdcCtrl1
+	tst r1,#0x08				;@ vbl IRQ enabled?
+	bxeq lr
 	cmp cycles,#7*4*CYCLE
 	orrmi r0,r0,#0x20			;@ VBlank bit
-	strbmi h6280a,vdcPrimedVBl
 	bx lr
 ;@----------------------------------------------------------------------------
 ;@_VDC2R					;@ VDC Data L
@@ -749,7 +772,6 @@ calcVBL:
 ;@	sub r0,r0,r2
 	rsbhi r0,r2,#256
 	str r0,vdcEndFrameLine
-	str r0,vdcVBlLine
 	add r1,r0,#1
 	str r1,vdcVBlEndLine
 
@@ -1059,21 +1081,16 @@ vdcDoVramDMA:
 	.byte 0						;@
 vdcPrimedVBl:
 	.byte 0						;@
-//vdcAdrIncOld:
-//	.byte 1		;@
 vdcBurst:
 	.byte 0						;@
-//	.byte 0
 vdcLatchTime:
 	.long 1504*CYCLE			;@ 1504/1552
 vdcScanlineHook:	.long 0
 
 vdcStateTable:
-vdcZeroLine:		.long 0, newFrame
-//vdcScrStartLine:	.long 0, earlyFrame
+vdcZeroLine:		.long 0, fakeFrame
 vdcMidFrameLine:	.long 96, midFrame
 vdcEndFrameLine:	.long 239, endFrame
-vdcVBlLine:			.long 239, startVbl
 vdcVBlEndLine:		.long 240, vblHook
 //vdc2ndLastScanline:	.long 260, secondLastScanline
 vdcLastScanline:	.long 261, frameEndHook

@@ -44,7 +44,8 @@
 	.global transferVRAM
 	.global clearDirtyTiles
 	.global midFrame
-	.global endFrame
+	.global gfxEndFrame
+	.global redrawTiles
 	.global vblIrqHandler
 	.global refreshSprites
 
@@ -127,6 +128,9 @@ antSeed:
 antWarsInit:
 	.type antWarsInit STT_FUNC
 ;@----------------------------------------------------------------------------
+	stmfd sp!,{lr}
+	bl gfxReset
+
 	mov r0,#0x00
 	ldr r1,=gGfxMask
 	strb r0,[r1]
@@ -143,8 +147,9 @@ antWarsInit:
 
 	ldr r1,=0x03000300
 	mov r2,#0x800/4
-	b memset_					;@ BG2 clear
-
+	bl memset_					;@ BG2 clear
+	ldmfd sp!,{lr}
+	bx lr
 ;@----------------------------------------------------------------------------
 antWars:
 	.type   antWars STT_FUNC
@@ -601,8 +606,7 @@ scrolLoop2:
 	bic r0,r0,r2,lsl#8
 	strh r0,[r9,#REG_DISPCNT]
 
-	ldr r2,=BGOffset1
-	ldr r2,[r2]
+	ldr r2,BGOffset1
 	ldr r0,=0xE002				;@ 1024x1024, wrap BG & prio.
 	add r0,r0,r2
 	strh r0,[r9,#REG_BG2CNT]
@@ -657,31 +661,10 @@ midFrame:					;@ Called at line 96
 	b sprDMADo
 
 ;@----------------------------------------------------------------------------
-endFrame:					;@ Called just before screen end (~line 192)	(r0-r2 safe to use)
+gfxEndFrame:					;@ Called just before screen end (~line 192)	(r0-r2 safe to use)
 ;@----------------------------------------------------------------------------
-	stmfd sp!,{r1,r3-r9,r11,lr}
+	stmfd sp!,{r3,lr}
 
-	bl newX
-
-	ldr r1,=vdcBurst
-	ldrb r0,[r1]
-	cmp r0,#0
-	mov r0,#0
-	strb r0,[r1]
-
-	ldreq r0,=0x0000			;@ If burstmode, wait until next frame with enabling bgr.
-	moveq r1,#0					;@ 1?
-	moveq addy,#239
-	adr lr,vdcRet
-	beq vdcCtrl1Finish
-	bne newVDCCR
-vdcRet:
-;@--------------------------
-	ldr r0,=0x0000				;@ WININBUFF
-	ldr r1,=vdcEndFrameLine
-	ldr r1,[r1]
-	mov addy,#239
-	bl vdcCtrl1Finish
 ;@--------------------------
 	bl tileMapFinish
 ;@--------------------------
@@ -707,23 +690,8 @@ vdcRet:
 	ldr r0,=windowTop			;@ Load wTop, store in wTop+4.......load wTop+8, store in wTop+12
 	ldmia r0,{r1-r3}			;@ Load with post increment
 	stmib r0,{r1-r3}			;@ Store with pre increment
-//	mov r0,#0x00FF
-//	ldr r1,=BG_PALETTE_SUB		;@ Background palette
-//	strh r0,[r1]				;@ Background palette
 
-skipVBlWait:
-//	mov r0,#0x7C00
-//	ldr r1,=BG_PALETTE_SUB		;@ Background palette
-//	strh r0,[r1]				;@ Background palette
-	bl redrawTiles
-
-//	mov r0,#BG_GFX				;@ NDS BG tileset
-//	orr r0,r0,#0x400000			;@ Spr ram
-//	ldr r1,=DELAYED_SPRITETILES	;@ DMA3 src, Sprite tiles:
-//	mov r2,#0x8000				;@ 32kB
-//	blx memcpy
-
-	ldmfd sp!,{r1,r3-r9,r11,lr}
+	ldmfd sp!,{r3,lr}
 	bx lr
 
 	.pool
@@ -757,7 +725,7 @@ refreshSprites:
 	ldr r2,dmaOamBuffer			;@ Destination
 	b sprRefresh
 ;@----------------------------------------------------------------------------
-sprDMADo:					;@ Called from midframe. YATX
+sprDMADo:					;@ Called from midframe. YXTA
 ;@----------------------------------------------------------------------------
 ;@ Word 0 : ------aaaaaaaaaa
 ;@ Word 1 : ------bbbbbbbbbb

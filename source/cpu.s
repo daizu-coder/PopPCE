@@ -70,30 +70,23 @@ skipYPan:
 
 	bl refreshEMUjoypads		;@ Z=1 if communication ok
 
-	bl newFrame					;@ Display update
-	bl updateCDROM				;@ Update CD counters and stuff
-@	bl updateSound
-
 	add r0,h6280ptr,#h6280Regs
 	ldmia r0,{h6280nz-h6280pc,h6280zpage}	;@ Restore H6280 state
-
-	ldr r0,[h6280ptr,#h6280NextTimeout]
-	bx r0
-//	ldr r0,scanlineCycles
-//	b h6280RunXCycles
 
 ;@----------------------------------------
 SGXFrameLoop:
 //	bl VDCDoScanline
 ;@----------------------------------------
 PCEFrameLoop:
+	bl updateCDROM				;@ Update CD counters and stuff
+	ldr r0,scanlineCycles
+	bl h6280RunXCycles
 #ifdef SAMPLE_PLAYING
 	bl soundUpdate
 #endif
 	bl VDCDoScanline
 	cmp r0,#0
-	ldreq r0,scanlineCycles
-	beq h6280RunXCycles
+	beq PCEFrameLoop
 ;@----------------------------------------------------------------------------
 
 	add r0,h6280ptr,#h6280Regs
@@ -141,20 +134,20 @@ stepFrame:					;@ Return after 1 frame
 ;@----------------------------------------------------------------------------
 	stmfd sp!,{r4-r11,lr}
 	ldr h6280ptr,=h6280OpTable
-	bl newFrame					;@ Display update
 	bl updateCDROM				;@ Update CD counters and stuff
 	add r0,h6280ptr,#h6280Regs
 	ldmia r0,{h6280nz-h6280pc,h6280zpage}	;@ Restore H6280 state
 ;@----------------------------------------------------------------------------
 stepLoop:
 ;@----------------------------------------------------------------------------
+	ldr r0,scanlineCycles
+	bl h6280RunXCycles
 #ifdef SAMPLE_PLAYING
 	bl soundUpdate
 #endif
 	bl VDCDoScanline
 	cmp r0,#0
-	ldreq r0,scanlineCycles
-	beq h6280RunXCycles
+	beq stepLoop
 ;@----------------------------------------------------------------------------
 	add r0,h6280ptr,#h6280Regs
 	stmia r0,{h6280nz-h6280pc,h6280zpage}	;@ Save H6280 state
@@ -169,10 +162,6 @@ cpuReset:					;@ Called by loadcart/resetGame
 
 	ldr r0,=CYCLE_PSL			;@ 455
 	str r0,scanlineCycles
-
-	adr r0,PCEFrameLoop
-	str r0,[h6280ptr,#h6280NextTimeout]
-	str r0,[h6280ptr,#h6280NextTimeout_]
 
 //	bl h6280Hacks
 	bl h6280Reset

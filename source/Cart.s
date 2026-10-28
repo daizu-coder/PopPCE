@@ -53,6 +53,7 @@
 
 #ifdef EMBEDDED_ROM
 rawRom:
+//	.incbin "roms/[BIOS] LaserActive PAC-N1 (Japan) (v1.02).pce"
 //	.incbin "roms/15-in-1 Mega Collection (J).pce"
 //	.incbin "roms/240pSuite.pce"
 //	.incbin "roms/1943 Kai (J).pce"
@@ -528,15 +529,15 @@ sgxRAM:
 	.size sgxRAM, 0x8000
 ROM_Space:
 biosSpace:
-	.space 0x40000				;@ US/JP BIOS 256kB max
+	.space 0x40000				;@ US/JP BIOS 256kB max, LD 512kB.
+ACC_RAM:
+	.space 0x200000
 CD_PCM_RAM:
 	.space 0x10000
 SCD_RAM:
 	.space 0x30000
 PCE_CD_RAM:
 	.space 0x10000
-ACC_RAM:
-	.space 0x200000
 ;@----------------------------------------------------------------------------
 	.end
 #endif // __arm__

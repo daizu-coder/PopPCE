@@ -115,6 +115,10 @@ cdReset:
 	mov r1,#0
 	mov r2,#(cdromStateEnd-cdromState)/4
 	bl memset_					;@ Clear CD-ROM regs
+	ldr r0,=LDRegs
+	mov r1,#0
+	mov r2,#0x40/4
+	bl memset_					;@ Clear LD-ROM regs
 //	bl copyTCD
 	ldmfd sp!,{lr}
 
@@ -228,8 +232,14 @@ tocLoop:
 	ldmfd sp!,{r3-r6,lr}
 	bx lr
 ;@----------------------------------------------------------------------------
-updateCDROM:				;@ Called every frame
+updateCDROM:				;@ Called every scanline
 ;@----------------------------------------------------------------------------
+	ldr r0,cdUpdCount
+	subs r0,r0,#1
+	ldrmi r0,=262
+	str r0,cdUpdCount
+	bxpl lr						;@ Only run once per frame
+
 	mov r0,#0
 	strb r0,adpcmStatus
 
@@ -417,7 +427,7 @@ noFetch:
 
 	subs r6,r6,#0x4000
 	bne adpcmLoop
-adEnd0:
+
 	ldrb r0,adAdrCtrl
 	tst r0,#0x40				;@ Stop playing?
 	bicne r0,r0,#0x20			;@ Stop playing.
@@ -528,7 +538,7 @@ moreCD_R:					;@ 0x18CX
 ;@	mov r11,r11					;@ No$GBA Debugg
 	and r0,addy,#0x03F8
 	cmp r0,#0xC0
-	bne emptyRead
+	bne LD_R
 
 	ldr r0,=gHwFlags
 	ldrb r0,[r0]
@@ -555,6 +565,71 @@ SCD_J:							;@ Super CDROM card (J)
 SCD_U:							;@ Super CDROM card (U)
 		.byte 0xFF,0xFF,0xFF,0xFF,0x00,0x55,0xAA,0x03
 
+LDRegs:
+	.space 0x40
+;@----------------------------------------------------------------------------
+LD_R:					;@ 0x19XX, Laser Disc
+;@----------------------------------------------------------------------------
+	tst addy,#0x0100
+	beq emptyRead
+	and r1,addy,#0xFF
+	subs r1,r1,#0x20
+	bmi emptyRead
+	cmp r1,#0x40
+	bpl emptyRead
+	adr r2,LDRegs
+	cmp r1,#0x20
+	beq LD40_R
+	cmp r1,#0x22
+	beq LD42_R
+	cmp r1,#0x25
+	beq LD45_R
+	cmp r1,#0x28
+	beq LD48_R
+	cmp r1,#0x29
+	beq LD49_R
+	cmp r1,#0x02
+	bmi LD20_R
+	mov r11,r11
+LD20_R:
+LD21_R:
+	ldrb r0,[r2,r1]
+	bx lr
+LD40_R:
+	ldrb r0,[r2,r1]!
+	orr r1,r0,#0x80
+	strb r1,[r2]
+	bx lr
+LD42_R:
+	mov r0,#0x20			;@ Bit 5 set for CD
+	bx lr
+LD45_R:
+	mov r0,#0x7F			;@ Remote/Unit button pressed.
+	bx lr
+LD48_R:
+	mov r0,#0x41			;@ Bit 6 & 0 set for CD
+	bx lr
+LD49_R:
+	mov r0,#0x00			;@ Errors.
+	bx lr
+
+;@----------------------------------------------------------------------------
+LD_W:					;@ 0x19XX, Laser Disc
+;@----------------------------------------------------------------------------
+	tst addy,#0x0100
+	beq emptyWrite
+	and r1,addy,#0xFF
+	subs r1,r1,#0x20
+	bmi emptyWrite
+	cmp r1,#0x40
+	bpl emptyWrite
+	adr r2,LDRegs
+	tst r1,#0x1F
+	beq ldNoStopW
+	mov r11,r11
+ldNoStopW:
+	strb r0,[r2,r1]
+	bx lr
 ;@----------------------------------------------------------------------------
 CDROM_W:					;@ 0x1800-0x180f
 ;@----------------------------------------------------------------------------
@@ -587,7 +662,7 @@ moreCD_W:					;@ 0x18C0
 ;@	mov r11,r11					;@ No$GBA Debugg
 	bic r1,addy,#0xF800
 	cmp r1,#0xC0
-	bne emptyWrite
+	bne LD_W
 	ldr r1,=gHwFlags
 	ldrb r1,[r1]
 	tst r1,#SCD_DEVICE
@@ -1096,6 +1171,7 @@ sectorPtr:	.long 0				;@ Audio sector pointer, shift 2 right to get real value.
 sectorEnd:	.long 0				;@ Audio end sector pointer, shift 2 right to get real value.
 cddaStart:	.long 0				;@ Start position for cd audio (for repeat...).
 cdSeekTime:	.long 0				;@ Seek time in frames (when setting sector).
+cdUpdCount:	.long 0				;@ Counter for cdUpdate
 
 adPtr:		.long 0				;@ ADPCM ptr	($1808-1809)
 adLen:		.long 0				;@ ADPCM length, in upper 17/18 bits
