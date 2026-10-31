@@ -46,7 +46,7 @@ extern void mirrorBytes(unsigned char *memory, int length);
 extern unsigned char ROM_Space[0x290000];
 extern unsigned int g_ROM_Size;
 extern unsigned int EMUinput;
-extern unsigned int joyCfg;			/* io.s, bit 27 = 6-button pad */
+extern unsigned int joyCfg;			/* io.s, bits 25-26 = pad type */
 extern unsigned char pceSRAM[0x2000];
 extern unsigned char pceRAM[0x2000];
 extern unsigned char pceVRAM[0x10000];
@@ -105,14 +105,17 @@ extern void soundRender(int length, void *dest);
 #define KEY_LEFT	0x020
 #define KEY_UP		0x040
 #define KEY_DOWN	0x080
-/* Extra 6-button pad buttons. io.s sends EMUinput bits 8-11 as the pad's
- * third nibble (III, IV, V, VI in bits 0-3), but first swaps the DS X
- * and Y bits (0x400/0x800) - so V and VI are given here pre-swapped. */
-#define KEY_III		0x100
-#define KEY_IV		0x200
-#define KEY_V		0x800
-#define KEY_VI		0x400
-#define JOYCFG_6BUTTON	0x08000000
+/* Extra 6-button pad buttons. io.s looks each PCE button up in its key
+ * table (PCE_MAP_I..PCE_MAP_VI); its initial contents, which CE never
+ * changes (setJoyMapping is not called), map III-VI to DS R, L, Y, X. */
+#define KEY_III		0x100	/* DS R */
+#define KEY_IV		0x200	/* DS L */
+#define KEY_V		0x800	/* DS Y */
+#define KEY_VI		0x400	/* DS X */
+/* io.s joyCfg bits 25-26: pad type, 0 = 3 Button, 2 = 6 Button (the alt
+ * types 1 and 3 only differ in setJoyMapping's key tables) */
+#define JOYCFG_PADTYPE	0x06000000
+#define JOYCFG_6BUTTON	0x04000000
 /* Largest plain HuCard. Anything bigger uses the Street Fighter II'
  * mapper (Memory.s:romWrite switches banks only when romMask >= 0x80,
  * i.e. more than 1MB), and SF2' is the only 6-button HuCard. */
@@ -311,10 +314,9 @@ static void selectPadType(size_t romSize)
 	int six = isCd ? isSixButtonCd() : romSize > PCE_PLAIN_HUCARD_MAX;
 
 	padSixButtons = six;
+	joyCfg &= ~JOYCFG_PADTYPE;
 	if (six)
 		joyCfg |= JOYCFG_6BUTTON;
-	else
-		joyCfg &= ~JOYCFG_6BUTTON;
 	CeLog("pce: %u byte %s, %d-button pad", (unsigned)romSize,
 		isCd ? "System Card" : "HuCard", six ? 6 : 2);
 }
