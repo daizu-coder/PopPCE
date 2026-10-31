@@ -109,11 +109,16 @@ END
  * label box is 32 wide and every remap button 54 wide (48 until
  * 2026-09-27: "Press key"/"Backspace" overflowed 48 in the Galmuri14
  * font, user request +6; the gaps between the columns and the right
- * margin were narrowed to keep the dialog at 190). No Cancel
+ * margin were narrowed to keep the dialog at 190). PopPCE: the gap
+ * between the two columns widened from 4 to 12 (user request,
+ * 2026-11-01) by moving the right column and OK 8 to the right and
+ * widening the dialog to 198 - no button can be narrower and still fit
+ * "Backspace" (84 px), and no right label box narrower and still fit
+ * Select's Japanese label (57 px). No Cancel
  * button - see IDD_SOUNDCONFIG's comment on why; WS_GROUP on the first
  * remap button makes Up/Down wrap through OK and back, same mechanism
  * as IDD_MAINMENU's Open ROM row. */
-IDD_INPUTCONFIG DIALOG 0, 0, 190, 170
+IDD_INPUTCONFIG DIALOG 0, 0, 198, 170
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Input Config"
 FONT 9, "Tahoma"
@@ -126,43 +131,43 @@ BEGIN
      * pce_core_ce.c's readJoypad). */
     LTEXT     "Up",       IDC_IC_LBL_UP,      6,  9, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_UP,     40,  8, 54, 14, WS_GROUP | WS_TABSTOP | BS_OWNERDRAW
-    LTEXT     "I",        IDC_IC_LBL_A,      98,  9, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_A,     132,  8, 54, 14, BS_OWNERDRAW
+    LTEXT     "I",        IDC_IC_LBL_A,      106,  9, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_A,     140,  8, 54, 14, BS_OWNERDRAW
 
     LTEXT     "Down",     IDC_IC_LBL_DOWN,    6, 26, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_DOWN,   40, 25, 54, 14, BS_OWNERDRAW
-    LTEXT     "II",       IDC_IC_LBL_B,      98, 26, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_B,     132, 25, 54, 14, BS_OWNERDRAW
+    LTEXT     "II",       IDC_IC_LBL_B,      106, 26, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_B,     140, 25, 54, 14, BS_OWNERDRAW
 
     LTEXT     "Left",     IDC_IC_LBL_LEFT,    6, 43, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_LEFT,   40, 42, 54, 14, BS_OWNERDRAW
-    LTEXT     "III",      IDC_IC_LBL_C,      98, 43, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_X,     132, 42, 54, 14, BS_OWNERDRAW
+    LTEXT     "III",      IDC_IC_LBL_C,      106, 43, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_X,     140, 42, 54, 14, BS_OWNERDRAW
 
     LTEXT     "Right",    IDC_IC_LBL_RIGHT,   6, 60, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_RIGHT,  40, 59, 54, 14, BS_OWNERDRAW
-    LTEXT     "IV",       IDC_IC_LBL_X,      98, 60, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_Y,     132, 59, 54, 14, BS_OWNERDRAW
+    LTEXT     "IV",       IDC_IC_LBL_X,      106, 60, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_Y,     140, 59, 54, 14, BS_OWNERDRAW
 
     LTEXT     "Up R",     IDC_IC_LBL_UPRIGHT,   6, 77, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_UPRIGHT, 40, 76, 54, 14, BS_OWNERDRAW
-    LTEXT     "V",        IDC_IC_LBL_Y,        98, 77, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_L,      132, 76, 54, 14, BS_OWNERDRAW
+    LTEXT     "V",        IDC_IC_LBL_Y,        106, 77, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_L,      140, 76, 54, 14, BS_OWNERDRAW
 
     LTEXT     "R Down",   IDC_IC_LBL_RIGHTDOWN,  6, 94, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_RIGHTDOWN,40, 93, 54, 14, BS_OWNERDRAW
-    LTEXT     "VI",       IDC_IC_LBL_Z,          98, 94, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_R,        132, 93, 54, 14, BS_OWNERDRAW
+    LTEXT     "VI",       IDC_IC_LBL_Z,          106, 94, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_R,        140, 93, 54, 14, BS_OWNERDRAW
 
     LTEXT     "Down L",   IDC_IC_LBL_DOWNLEFT,   6,111, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_DOWNLEFT, 40,110, 54, 14, BS_OWNERDRAW
-    LTEXT     "Select",   IDC_IC_LBL_SELECT,    98,111, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_SELECT,   132,110, 54, 14, BS_OWNERDRAW
+    LTEXT     "Select",   IDC_IC_LBL_SELECT,    106,111, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_SELECT,   140,110, 54, 14, BS_OWNERDRAW
 
     LTEXT     "L Up",     IDC_IC_LBL_LEFTUP,    6,128, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_LEFTUP,   40,127, 54, 14, BS_OWNERDRAW
-    LTEXT     "Run",      IDC_IC_LBL_START,    98,128, 32, 12
-    PUSHBUTTON "",        IDC_IC_BTN_START,   132,127, 54, 14, BS_OWNERDRAW
+    LTEXT     "Run",      IDC_IC_LBL_START,    106,128, 32, 12
+    PUSHBUTTON "",        IDC_IC_BTN_START,   140,127, 54, 14, BS_OWNERDRAW
 
     /* PopPCE: pad type spinner on OK's row, so the dialog keeps its
      * height (see PORTING_GUIDE on dialog heights); OK moves under the
@@ -172,7 +177,7 @@ BEGIN
     PUSHBUTTON "Auto",    IDC_IC_PAD_VALUE,    56,147, 48, 14, WS_TABSTOP | BS_OWNERDRAW
     PUSHBUTTON "+",       IDC_IC_PAD_PLUS,    106,148, 14, 12, BS_OWNERDRAW
 
-    DEFPUSHBUTTON "OK",                IDOK,         132, 147,  54, 14, BS_OWNERDRAW
+    DEFPUSHBUTTON "OK",                IDOK,         140, 147,  54, 14, BS_OWNERDRAW
 END
 
 /* Volume/Rate/Bits/Quality are all "-/value/+" spinners now (ported
