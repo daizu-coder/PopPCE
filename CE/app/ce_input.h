@@ -59,9 +59,9 @@ void CeInputSuppressStartKey(void);
 
 /* PopPCE: pad type (Input Config's "Pad" row: Auto / 2 Button /
  * 6 Button), handed to the core as the pce_pad core option. Call with
- * the ROM's path right before retro_load_game() (sets the pad type for
- * that game), or with NULL when no game is loaded (the row is then
- * disabled). */
+ * the ROM's path right before retro_load_game() (reads that game's
+ * "<ROM file name>.pad"; Input Config writes or deletes it), or with
+ * NULL when no game is loaded (the row is then disabled). */
 void CeInputLoadGamePad(const wchar_t *romPath);
 
 /* ce_main.c's ce_environment() calls this for RETRO_ENVIRONMENT_GET_VARIABLE:

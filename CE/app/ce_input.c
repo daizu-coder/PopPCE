@@ -167,11 +167,92 @@ static int s_padMode = CE_PAD_AUTO;
 static int s_padGame = 0;   /* a game is loaded, so the row can be changed */
 static int s_padDirty = 0;  /* see CeInputConsumeDirty() */
 
+/* Each game's pad type lives next to the ROM in "<ROM file name>.pad"
+ * (like its .srm and .state): one line, "pad=2" or "pad=6". No file
+ * means Auto - choosing Auto again deletes the file. "pad=auto" is
+ * written only if that delete fails, and anything unreadable counts as
+ * Auto. */
+static wchar_t s_padPath[MAX_PATH + 8];
+
+static int ReadPadFile(const wchar_t *path)
+{
+    char line[32];
+    size_t len;
+    FILE *f = _wfopen(path, L"rb");
+
+    if (!f)
+    {
+        CeLog("CeInputLoadGamePad: no .pad file (auto)");
+        return CE_PAD_AUTO;
+    }
+    len = fread(line, 1, sizeof(line) - 1, f);
+    fclose(f);
+    line[len] = '\0';
+    while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n' || line[len - 1] == ' '))
+        line[--len] = '\0';
+
+    if (strcmp(line, "pad=2") == 0)
+        return CE_PAD_2BUTTON;
+    if (strcmp(line, "pad=6") == 0)
+        return CE_PAD_6BUTTON;
+    if (strcmp(line, "pad=auto") != 0)
+        CeLog("CeInputLoadGamePad: .pad file not understood, using auto");
+    return CE_PAD_AUTO;
+}
+
+static int WritePadFile(const wchar_t *path, const char *line)
+{
+    FILE *f = _wfopen(path, L"wb");
+    size_t len = strlen(line);
+    int ok;
+
+    if (!f)
+        return 0;
+    ok = fwrite(line, 1, len, f) == len;
+    if (fclose(f) != 0)
+        ok = 0;
+    return ok;
+}
+
+static void SaveGamePad(void)
+{
+    static const char *const kLines[CE_PAD_COUNT] = { "pad=auto\r\n", "pad=2\r\n", "pad=6\r\n" };
+
+    if (!s_padGame || !s_padPath[0])
+        return;
+    if (s_padMode == CE_PAD_AUTO)
+    {
+        DWORD err = DeleteFileW(s_padPath) ? 0 : GetLastError();
+
+        if (err == 0 || GetFileAttributesW(s_padPath) == 0xFFFFFFFF)
+        {
+            CeLog("SaveGamePad: auto, .pad file removed");
+            return;
+        }
+        /* Could not delete it: make it say auto instead. */
+        CeLog("SaveGamePad: could not delete the .pad file (error %lu), writing pad=auto",
+              (unsigned long)err);
+    }
+    if (WritePadFile(s_padPath, kLines[s_padMode]))
+        CeLog("SaveGamePad: wrote %s", kPadOptionValues[s_padMode]);
+    else
+        CeLog("SaveGamePad: could not write the .pad file");
+}
+
 void CeInputLoadGamePad(const wchar_t *romPath)
 {
-    s_padMode = CE_PAD_AUTO;
     s_padGame = (romPath != NULL);
     s_padDirty = 0; /* retro_load_game() reads the option anyway */
+    if (!romPath)
+    {
+        s_padPath[0] = L'\0';
+        s_padMode = CE_PAD_AUTO;
+        return;
+    }
+    _snwprintf(s_padPath, MAX_PATH + 8, L"%s.pad", romPath);
+    s_padPath[MAX_PATH + 7] = L'\0';
+    s_padMode = ReadPadFile(s_padPath);
+    CeLog("CeInputLoadGamePad: pad %s", kPadOptionValues[s_padMode]);
 }
 
 int CeInputEnvGetVariable(const char *key, const char **outValue)
@@ -729,6 +810,7 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
                 /* the core picks it up on the next retro_run() */
                 s_padDirty = 1;
                 CeLog("Input Config: pad %s", kPadOptionValues[s_padMode]);
+                SaveGamePad();
             }
             EndDialog(hDlg, ctrlId);
             return TRUE;
