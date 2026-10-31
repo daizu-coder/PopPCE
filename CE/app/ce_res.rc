@@ -164,7 +164,15 @@ BEGIN
     LTEXT     "Run",      IDC_IC_LBL_START,    98,128, 32, 12
     PUSHBUTTON "",        IDC_IC_BTN_START,   132,127, 54, 14, BS_OWNERDRAW
 
-    DEFPUSHBUTTON "OK",                IDOK,          70, 147,  50, 14, BS_OWNERDRAW
+    /* PopPCE: pad type spinner on OK's row, so the dialog keeps its
+     * height (see PORTING_GUIDE on dialog heights); OK moves under the
+     * right column. */
+    LTEXT     "Pad",      IDC_IC_LBL_PAD,       6,148, 32, 12
+    PUSHBUTTON "-",       IDC_IC_PAD_MINUS,    40,148, 14, 12, BS_OWNERDRAW
+    PUSHBUTTON "Auto",    IDC_IC_PAD_VALUE,    56,147, 48, 14, WS_TABSTOP | BS_OWNERDRAW
+    PUSHBUTTON "+",       IDC_IC_PAD_PLUS,    106,148, 14, 12, BS_OWNERDRAW
+
+    DEFPUSHBUTTON "OK",                IDOK,         132, 147,  54, 14, BS_OWNERDRAW
 END
 
 /* Volume/Rate/Bits/Quality are all "-/value/+" spinners now (ported

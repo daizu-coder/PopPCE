@@ -57,4 +57,20 @@ int CeInputIsWaitingForKeyRemap(void);
  * the earlier prototype's own, differently-structured input code. */
 void CeInputSuppressStartKey(void);
 
+/* PopPCE: pad type (Input Config's "Pad" row: Auto / 2 Button /
+ * 6 Button), handed to the core as the pce_pad core option. Call with
+ * the ROM's path right before retro_load_game() (sets the pad type for
+ * that game), or with NULL when no game is loaded (the row is then
+ * disabled). */
+void CeInputLoadGamePad(const wchar_t *romPath);
+
+/* ce_main.c's ce_environment() calls this for RETRO_ENVIRONMENT_GET_VARIABLE:
+ * answers "pce_pad" ("auto", "2button" or "6button") and returns 1;
+ * returns 0 for any other key. */
+int CeInputEnvGetVariable(const char *key, const char **outValue);
+
+/* RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: returns 1 (and clears the flag)
+ * once after Input Config changed the pad type. */
+int CeInputConsumeDirty(void);
+
 #endif

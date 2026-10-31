@@ -107,17 +107,24 @@ static bool ce_environment(unsigned cmd, void *data)
          * checkVariables() in CE/core/pce_core_ce.c) instead of a new side
          * channel - CE just needs to answer that query. */
         struct retro_variable *var = (struct retro_variable *)data;
-        return CeVideoEnvGetVariable(var->key, &var->value) ? true : false;
+        /* PopPCE: Input Config's pad type (pce_pad, ce_input.c) too. */
+        return (CeVideoEnvGetVariable(var->key, &var->value) ||
+                CeInputEnvGetVariable(var->key, &var->value)) ? true : false;
     }
 
     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
+    {
         /* Lets a Video Config change made mid-session (ROM already
          * loaded, retro_load_game() - which would otherwise be the only
          * point check_variables() re-reads these - not called again)
          * take effect on the very next retro_run() instead of needing a
-         * File>Open reload. */
-        *(bool *)data = CeVideoConsumeDirty() ? true : false;
+         * File>Open reload. Same for Input Config's pad type; both
+         * flags are consumed. */
+        int videoDirty = CeVideoConsumeDirty();
+        int padDirty = CeInputConsumeDirty();
+        *(bool *)data = (videoDirty || padDirty) ? true : false;
         return true;
+    }
 
     case RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK:
     {
@@ -614,6 +621,7 @@ static int LoadRomFlow(HWND hwnd)
      * path too, so non-ASCII (Japanese) names do not depend on the
      * CP_ACP round trip described above. */
     pceCoreSetRomPathW(romPath);
+    CeInputLoadGamePad(romPath); /* the pad type the core asks for while loading */
     memset(&game, 0, sizeof(game));
     game.path = pathUtf8;
     game.data = NULL; /* the core reads the file itself via game.path - see PickRom's comment */
@@ -624,6 +632,7 @@ static int LoadRomFlow(HWND hwnd)
         CeLog("LoadRomFlow: retro_load_game failed");
         MessageBoxW(hwnd, L"Failed to load ROM.", kAppTitle, MB_OK);
         g_romLoaded = 0;
+        CeInputLoadGamePad(NULL);
         return 0;
     }
 

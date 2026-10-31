@@ -129,6 +129,12 @@
 #define IDC_IC_LBL_RIGHTDOWN 3133
 #define IDC_IC_LBL_DOWNLEFT  3134
 #define IDC_IC_LBL_LEFTUP    3135
+/* PopPCE: the "Pad" row (pad type for the loaded game, see ce_input.c),
+ * a "-/value/+" spinner left of OK on the bottom row. */
+#define IDC_IC_LBL_PAD       3136
+#define IDC_IC_PAD_MINUS     3137
+#define IDC_IC_PAD_VALUE     3138
+#define IDC_IC_PAD_PLUS      3139
 
 /* Sound Config dialog (CE/ce_res.rc's IDD_SOUNDCONFIG) - see
  * ce_audio.c. Volume/Rate/Bits/Quality are all "-/value/+" spinners now

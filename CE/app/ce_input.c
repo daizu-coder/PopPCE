@@ -33,6 +33,7 @@
 
 #include <libretro.h>
 #include <stdio.h>
+#include <string.h>
 
 /* This toolchain's winuser.h only declares VK_OEM_MINUS behind
  * `#if (_WIN32_WINNT >= 0x0500)`, and nothing in this build defines
@@ -151,6 +152,41 @@ int16_t CeInputState(unsigned port, unsigned device, unsigned index, unsigned id
         return 0;
 
     return s_padDown[id] ? 1 : 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Pad type (PopPCE, Input Config's "Pad" row)                         */
+/* ------------------------------------------------------------------ */
+
+/* In the row's order. The core reads it as the pce_pad core option
+ * (CE/core/pce_core_ce.c:applyPadType). */
+enum { CE_PAD_AUTO, CE_PAD_2BUTTON, CE_PAD_6BUTTON, CE_PAD_COUNT };
+static const char *const kPadOptionValues[CE_PAD_COUNT] = { "auto", "2button", "6button" };
+
+static int s_padMode = CE_PAD_AUTO;
+static int s_padGame = 0;   /* a game is loaded, so the row can be changed */
+static int s_padDirty = 0;  /* see CeInputConsumeDirty() */
+
+void CeInputLoadGamePad(const wchar_t *romPath)
+{
+    s_padMode = CE_PAD_AUTO;
+    s_padGame = (romPath != NULL);
+    s_padDirty = 0; /* retro_load_game() reads the option anyway */
+}
+
+int CeInputEnvGetVariable(const char *key, const char **outValue)
+{
+    if (strcmp(key, "pce_pad") != 0)
+        return 0;
+    *outValue = kPadOptionValues[s_padMode];
+    return 1;
+}
+
+int CeInputConsumeDirty(void)
+{
+    int wasDirty = s_padDirty;
+    s_padDirty = 0;
+    return wasDirty;
 }
 
 /* ------------------------------------------------------------------ */
@@ -345,6 +381,7 @@ static const int kInputLabelIds[] = {
     IDC_IC_LBL_UP, IDC_IC_LBL_DOWN, IDC_IC_LBL_LEFT, IDC_IC_LBL_RIGHT, IDC_IC_LBL_SELECT, IDC_IC_LBL_START,
     IDC_IC_LBL_A, IDC_IC_LBL_B, IDC_IC_LBL_C, IDC_IC_LBL_X, IDC_IC_LBL_Y, IDC_IC_LBL_Z,
     IDC_IC_LBL_UPRIGHT, IDC_IC_LBL_RIGHTDOWN, IDC_IC_LBL_DOWNLEFT, IDC_IC_LBL_LEFTUP,
+    IDC_IC_LBL_PAD,
 };
 #define CE_INPUT_LABEL_COUNT (sizeof(kInputLabelIds) / sizeof(kInputLabelIds[0]))
 
@@ -360,6 +397,7 @@ static void ApplyInputConfigLanguage(HWND hDlg)
         SetDlgItemTextW(hDlg, IDC_IC_LBL_RIGHT,  L"\x53f3");                         /* 右 */
         SetDlgItemTextW(hDlg, IDC_IC_LBL_SELECT, L"\x30bb\x30ec\x30af\x30c8");       /* セレクト */
         SetDlgItemTextW(hDlg, IDC_IC_LBL_START,  L"\x30e9\x30f3");                     /* ラン */
+        SetDlgItemTextW(hDlg, IDC_IC_LBL_PAD,    L"\x30d1\x30c3\x30c9");             /* パッド */
         SetDlgItemTextW(hDlg, IDOK,     L"\x6c7a\x5b9a");                            /* 決定 */
     }
     else
@@ -370,11 +408,34 @@ static void ApplyInputConfigLanguage(HWND hDlg)
         SetDlgItemTextW(hDlg, IDC_IC_LBL_RIGHT,  L"Right");
         SetDlgItemTextW(hDlg, IDC_IC_LBL_SELECT, L"Select");
         SetDlgItemTextW(hDlg, IDC_IC_LBL_START,  L"Run");
+        SetDlgItemTextW(hDlg, IDC_IC_LBL_PAD,    L"Pad");
         SetDlgItemTextW(hDlg, IDOK,     L"OK");
     }
 
     for (i = 0; i < CE_INPUT_LABEL_COUNT; i++)
         ShowWindow(GetDlgItem(hDlg, kInputLabelIds[i]), SW_HIDE);
+}
+
+static int s_padModeAtOpen; /* s_padMode when the dialog opened */
+
+static void UpdatePadLabel(HWND hDlg)
+{
+    static const wchar_t *const kJa[CE_PAD_COUNT] = {
+        L"\x81ea\x52d5",               /* 自動 */
+        L"2\x30dc\x30bf\x30f3",        /* 2ボタン */
+        L"6\x30dc\x30bf\x30f3",        /* 6ボタン */
+    };
+    static const wchar_t *const kEn[CE_PAD_COUNT] = { L"Auto", L"2 Button", L"6 Button" };
+
+    SetWindowTextW(GetDlgItem(hDlg, IDC_IC_PAD_VALUE), (CeLangIsJapanese() ? kJa : kEn)[s_padMode]);
+}
+
+static void StepPadMode(HWND hDlg, int delta)
+{
+    if (!s_padGame)
+        return;
+    s_padMode = (s_padMode + delta + CE_PAD_COUNT) % CE_PAD_COUNT;
+    UpdatePadLabel(hDlg);
 }
 
 #define WM_SETINPUTFOCUS (WM_APP + 204)
@@ -406,6 +467,7 @@ static const int kInputOrder[] = {
     IDC_IC_BTN_A,        IDC_IC_BTN_B,        IDC_IC_BTN_X,    IDC_IC_BTN_Y,	/* I-IV */
     IDC_IC_BTN_L,        IDC_IC_BTN_R,										/* V, VI */
     IDC_IC_BTN_SELECT,   IDC_IC_BTN_START,
+    IDC_IC_PAD_VALUE,	/* PopPCE: skipped while disabled (no game loaded) */
     IDOK,
 };
 #define CE_INPUT_ORDER_COUNT (sizeof(kInputOrder) / sizeof(kInputOrder[0]))
@@ -419,20 +481,31 @@ static int InputOrderIndex(int ctrlId)
     return -1;
 }
 
-static int InputNeighborUp(int ctrlId)
+/* step = -1 (Up) or 1 (Down): the next enabled stop that way */
+static int InputNeighbor(HWND hDlg, int ctrlId, int step)
 {
+    const int count = (int)CE_INPUT_ORDER_COUNT;
     int i = InputOrderIndex(ctrlId);
+    int n;
     if (i < 0)
         return ctrlId;
-    return kInputOrder[(i + CE_INPUT_ORDER_COUNT - 1) % CE_INPUT_ORDER_COUNT];
+    for (n = 1; n < count; n++)
+    {
+        int next = kInputOrder[(i + count + step * n) % count];
+        if (IsWindowEnabled(GetDlgItem(hDlg, next)))
+            return next;
+    }
+    return ctrlId;
 }
 
-static int InputNeighborDown(int ctrlId)
+static int InputNeighborUp(HWND hDlg, int ctrlId)
 {
-    int i = InputOrderIndex(ctrlId);
-    if (i < 0)
-        return ctrlId;
-    return kInputOrder[(i + 1) % CE_INPUT_ORDER_COUNT];
+    return InputNeighbor(hDlg, ctrlId, -1);
+}
+
+static int InputNeighborDown(HWND hDlg, int ctrlId)
+{
+    return InputNeighbor(hDlg, ctrlId, 1);
 }
 
 static WNDPROC s_pInputOrigProc = NULL;
@@ -476,12 +549,18 @@ static LRESULT CALLBACK InputBtnCtrlProc(HWND hWnd, UINT message, WPARAM wParam,
             CaptureKeyAsBinding(hDlg, idx, (int)wParam);
             return 0;
         }
+        /* The Pad spinner: Left/Right change it, Up/Down move on. */
+        if (id == IDC_IC_PAD_VALUE && (wParam == VK_LEFT || wParam == VK_RIGHT))
+        {
+            StepPadMode(hDlg, (wParam == VK_LEFT) ? -1 : 1);
+            return 0;
+        }
         switch (wParam)
         {
         case VK_UP:
-        case VK_LEFT:  SetFocus(GetDlgItem(hDlg, InputNeighborUp(id)));   return 0;
+        case VK_LEFT:  SetFocus(GetDlgItem(hDlg, InputNeighborUp(hDlg, id)));   return 0;
         case VK_DOWN:
-        case VK_RIGHT: SetFocus(GetDlgItem(hDlg, InputNeighborDown(id))); return 0;
+        case VK_RIGHT: SetFocus(GetDlgItem(hDlg, InputNeighborDown(hDlg, id))); return 0;
 
         case VK_RETURN:
         case VK_SPACE:
@@ -498,6 +577,12 @@ static LRESULT CALLBACK InputBtnCtrlProc(HWND hWnd, UINT message, WPARAM wParam,
                  * in InputConfigDlgProc), without depending on a
                  * synthesized click. */
                 BeginWaitForKey(hDlg, idx);
+            }
+            else if (id == IDC_IC_PAD_VALUE)
+            {
+                /* Spinner, not a toggle - decide just moves on, same as
+                 * Video/Sound Config's value spinners. */
+                SetFocus(GetDlgItem(hDlg, InputNeighborDown(hDlg, id)));
             }
             return 0;
 
@@ -532,6 +617,11 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
                 SetWindowTextW(hCtl, VkToLabel(s_map[i].vk));
         }
         ApplyInputConfigLanguage(hDlg);
+        UpdatePadLabel(hDlg);
+        s_padModeAtOpen = s_padMode;
+        EnableWindow(GetDlgItem(hDlg, IDC_IC_PAD_MINUS), s_padGame);
+        EnableWindow(GetDlgItem(hDlg, IDC_IC_PAD_VALUE), s_padGame);
+        EnableWindow(GetDlgItem(hDlg, IDC_IC_PAD_PLUS),  s_padGame);
 
         s_pInputOrigProc = (WNDPROC)GetWindowLongPtrW(GetDlgItem(hDlg, IDOK), GWLP_WNDPROC);
         for (i = 0; i < CE_INPUT_COUNT; i++)
@@ -540,6 +630,7 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
             if (hCtl)
                 SetWindowLongPtrW(hCtl, GWLP_WNDPROC, (LONG_PTR)InputBtnCtrlProc);
         }
+        SetWindowLongPtrW(GetDlgItem(hDlg, IDC_IC_PAD_VALUE), GWLP_WNDPROC, (LONG_PTR)InputBtnCtrlProc);
         SetWindowLongPtrW(GetDlgItem(hDlg, IDOK), GWLP_WNDPROC, (LONG_PTR)InputBtnCtrlProc);
 
         /* Belt-and-suspenders initial focus, same pattern as every other
@@ -615,6 +706,14 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
 
         switch (ctrlId)
         {
+        case IDC_IC_PAD_MINUS:
+            StepPadMode(hDlg, -1);
+            return TRUE;
+
+        case IDC_IC_PAD_PLUS:
+            StepPadMode(hDlg, 1);
+            return TRUE;
+
         case IDOK:
         case IDCANCEL:
             /* Physical Back (IDCANCEL, no longer a visible button on
@@ -625,6 +724,12 @@ static INT_PTR CALLBACK InputConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
              * prototype). */
             EndWaitForKey(hDlg);
             CeInputSaveConfig();
+            if (s_padMode != s_padModeAtOpen)
+            {
+                /* the core picks it up on the next retro_run() */
+                s_padDirty = 1;
+                CeLog("Input Config: pad %s", kPadOptionValues[s_padMode]);
+            }
             EndDialog(hDlg, ctrlId);
             return TRUE;
         }
