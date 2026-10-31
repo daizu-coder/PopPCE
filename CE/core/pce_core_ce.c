@@ -232,11 +232,43 @@ static void RETRO_CALLCONV audioBuffStatus(bool active, unsigned occupancy, bool
 	audioBuffUnderrun = underrun_likely;
 }
 
+/* Pad type (Input Config "Pad", answered by the frontend): "2button",
+ * "6button", or anything else for auto. Auto gives a HuCard over 1MB
+ * (the SF2' mapper; SF2' is the only 6-button HuCard) the 6-button pad
+ * and every other game, CD games included, the 2-button one: a 6-button
+ * pad answers every other read with III-VI, which 2-button games take as
+ * all four directions held. */
+#define PCE_OPT_PAD		"pce_pad"
+static int padAutoSix;				/* see selectPadType */
+
+static void applyPadType(const char *value)
+{
+	int six = padAutoSix;
+
+	if (value && strcmp(value, "2button") == 0)
+		six = 0;
+	else if (value && strcmp(value, "6button") == 0)
+		six = 1;
+	if (six == padSixButtons)
+		return;
+	padSixButtons = six;
+	joyCfg &= ~JOYCFG_PADTYPE;
+	if (six)
+		joyCfg |= JOYCFG_6BUTTON;
+	CeLog("pce: %d-button pad (%s)", six ? 6 : 2, value ? value : "auto");
+}
+
 static void checkVariables(void)
 {
 	struct retro_variable var = { PCE_OPT_FRAMESKIP, NULL };
+	struct retro_variable pad = { PCE_OPT_PAD, NULL };
 	int wantAuto = 0;
 	struct retro_audio_buffer_status_callback cb = { audioBuffStatus };
+
+	if (environ_cb && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &pad))
+		applyPadType(pad.value);
+	else
+		applyPadType(NULL);
 
 	if (environ_cb && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		wantAuto = strcmp(var.value, "auto") == 0;
@@ -262,63 +294,13 @@ void retro_init(void)
 	machineInit();
 }
 
-static uint32_t crc32(const unsigned char *p, size_t n);
-
-/* CD games that support the 6-button pad (the list on the "PC Engine
- * Kyou no Uta" controller page), by the CRC32 of the disc's IPL sector
- * (see pceCdIpl). The IPL's name field alone is not enough: several
- * games leave "SAMPLE PROGRAM" there. Only CRCs read from real images
- * are listed. */
-static const uint32_t sixButtonCdIpls[] = {
-	0x17cd1516,		/* Advanced V.G. */
-	0x42eab244,		/* Emerald Dragon (Rev 1) */
-	0x74679c7b,		/* Kakutou Haou Densetsu Algunos */
-	0xf2465fc0,		/* Garou Densetsu 2 */
-	0x40804bb7,		/* Garou Densetsu Special */
-	0xa3c3c584,		/* Kabuki Ittouryoudan */
-	0x66749ec0,		/* Ginga Ojousama Densetsu Yuna 2 */
-	0x26e3df92,		/* Super Real Mahjong PII-III Custom */
-	0xc70eb259,		/* Super Real Mahjong P.V Custom */
-	0x7dd93275,		/* Doukyuusei (Rev 4) */
-	0x6363e49b,		/* Fire Pro Joshi - Dome Choujo Taisen */
-	0x847a7574,		/* Flash Hiders */
-	0xfdbf5806,		/* Princess Maker 2 */
-	0xe59c3e5f,		/* Martial Champion */
-	0x52840ae8,		/* Mahjong Sword - Princess Quest Gaiden */
-	0x7ce39f84,		/* Ryuuko no Ken */
-	0xe0d1b1db,		/* Linda Cube (Linda3, Rev 2) */
-	0xa0d5bd7e,		/* World Heroes 2 */
-};
-
-static int isSixButtonCd(void)
-{
-	const unsigned char *ipl = pceCdIpl();
-	uint32_t crc;
-	unsigned i;
-
-	if (!ipl)
-		return 0;
-	crc = crc32(ipl, PCE_CD_IPL_SIZE);
-	CeLog("pce cd: IPL crc 0x%08x", (unsigned)crc);
-	for (i = 0; i < sizeof(sixButtonCdIpls) / sizeof(sixButtonCdIpls[0]); i++)
-		if (crc == sixButtonCdIpls[i])
-			return 1;
-	return 0;
-}
-
-/* A 6-button pad answers every other read with III-VI, which 2-button
- * games take as all four directions held. So the pad is a plain 2-button
- * one unless the game is known to support 6 buttons. */
+/* Records what "auto" means for the game being loaded. The pad itself
+ * is set by checkVariables (applyPadType) once the cart is started. */
 static void selectPadType(size_t romSize)
 {
-	int six = isCd ? isSixButtonCd() : romSize > PCE_PLAIN_HUCARD_MAX;
-
-	padSixButtons = six;
-	joyCfg &= ~JOYCFG_PADTYPE;
-	if (six)
-		joyCfg |= JOYCFG_6BUTTON;
-	CeLog("pce: %u byte %s, %d-button pad", (unsigned)romSize,
-		isCd ? "System Card" : "HuCard", six ? 6 : 2);
+	padAutoSix = !isCd && romSize > PCE_PLAIN_HUCARD_MAX;
+	padSixButtons = -1;		/* not set yet */
+	CeLog("pce: %u byte %s", (unsigned)romSize, isCd ? "System Card" : "HuCard");
 }
 
 void retro_deinit(void)
