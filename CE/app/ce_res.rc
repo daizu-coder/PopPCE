@@ -328,8 +328,10 @@ END
  * decide/cancel keys - decide enters a folder or picks a file, cancel
  * goes up a folder or closes the picker at the root. Resized to 190x104
  * (from 200x130, user request) to match every settings/picker dialog
- * exactly, same OK position (70,86,50,14) as Sound/Video Config. */
-IDD_FILEOPEN DIALOG 0, 0, 190, 108
+ * exactly, same OK position (70,86,50,14) as Sound/Video Config. Now
+ * 190x112 with "<<" / ">>" buttons for the Left/Right page jump by touch
+ * (v1.6.0, see the buttons' own comment below). */
+IDD_FILEOPEN DIALOG 0, 0, 190, 112
 STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Select ROM"
 FONT 9, "Tahoma"
@@ -350,7 +352,15 @@ BEGIN
      * out cut off on real hardware. +6 was too tall on real hardware,
      * +4 per user request. */
     LISTBOX               IDC_FO_LIST, 6, 16, 178, 68, LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON "OK",   IDOK,        70, 90, 50, 14, BS_OWNERDRAW
+    /* "<<" / ">>" - touch versions of the Left/Right page jump (user
+     * request, v1.6.0, same layout as the sister PopGBA v1.2.0 / PopSG
+     * v1.3.0; ce_fileopen.c's PageFileList()). Not tab stops: the keys
+     * never need to land on them. The three buttons share the full width
+     * and are 18 DLU tall so a fingertip hits them; dialog 108 -> 112 to
+     * keep the 4 DLU bottom margin. */
+    PUSHBUTTON "<<",      IDC_FO_PREV,  6, 90, 56, 18, BS_OWNERDRAW | NOT WS_TABSTOP
+    DEFPUSHBUTTON "OK",   IDOK,        67, 90, 56, 18, BS_OWNERDRAW
+    PUSHBUTTON ">>",      IDC_FO_NEXT, 128, 90, 56, 18, BS_OWNERDRAW | NOT WS_TABSTOP
 END
 
 /* Generic message box (see ce_resource.h's IDD_MSGBOX comment and

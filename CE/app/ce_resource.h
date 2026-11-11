@@ -258,6 +258,10 @@
 #define IDD_FILEOPEN      3400
 #define IDC_FO_PATH       3401
 #define IDC_FO_LIST       3402
+/* "<<" / ">>" touch buttons - same page jump as the Left/Right keys
+ * (ce_fileopen.c's PageFileList()). */
+#define IDC_FO_PREV       3403
+#define IDC_FO_NEXT       3404
 
 /* Generic message box (CE/ce_res.rc's IDD_MSGBOX, ce_main.c's
  * CeShowMsgBox()/MsgBoxDlgProc) - ported from the sister PopGB /
