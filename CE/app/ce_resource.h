@@ -251,6 +251,16 @@
  * it's on. Ported from the sister PopSNES (round 28). */
 #define IDC_VC_DEBUGLOG          3314
 
+/* Main menu key (one row under Debug Logging): IDC_VC_LBL_MENUKEY is
+ * the caption, painted by WM_PAINT like the other LTEXT labels;
+ * IDC_VC_MENUKEY shows the bound key's name and, when pressed, waits
+ * for a key the same way an Input Config remap button does, showing
+ * "Press key (N)" and falling back to "None" after 5 seconds with no
+ * key. Persisted as "VideoMenuKey" (VK code, 0 = none, the default) -
+ * see ce_video.c. 3315 is left unused. */
+#define IDC_VC_LBL_MENUKEY       3316
+#define IDC_VC_MENUKEY           3317
+
 /* Custom ROM picker (CE/ce_res.rc's IDD_FILEOPEN, CE/ce_fileopen.c) -
  * replaces GetOpenFileNameW(), which has no way to show Japanese folder/
  * file names (see ce_fileopen.c). Ported from an earlier prototype's

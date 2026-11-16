@@ -264,7 +264,7 @@ END
  * "GAIKOKU-English" and "NIHON-Japanese" still fit - IDC_VC_JAPANESE is
  * one control shown at two different strings, not two controls, so
  * they're always exactly the same box). */
-IDD_VIDEOCONFIG DIALOG 0, 0, 190, 101
+IDD_VIDEOCONFIG DIALOG 0, 0, 190, 119
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Video Config"
 FONT 9, "Tahoma"
@@ -314,7 +314,24 @@ BEGIN
      * source of truth and paints it via CeBmpFontDrawOwnerCheckbox(). */
     CHECKBOX    "Enable Debug Logging", IDC_VC_DEBUGLOG, 8, 57, 160, 12, BS_OWNERDRAW
 
-    DEFPUSHBUTTON "OK",  IDOK,                          70, 77, 50, 14, BS_OWNERDRAW
+    /* Main menu key: caption and key button on one row, laid out like
+     * Frame Skip above (button at x=100, caption 4 below the button's
+     * top) - PopSNES v1.4.0's row, 17 higher like every row here.
+     * "メインメニューキー:" is 140px in Galmuri14 (English "Main Menu
+     * Key:" 119px) and fits left of the button on PW-G5300 and PW-SH2
+     * (CeOpener 800x480 and add-on app 480x320) - same layout as PopSG
+     * v1.4.0, checked there on hardware 2026-11-14. The button is 80
+     * wide so "Press key (5)" fits, and 16 tall (not 14 like the other
+     * buttons): at 14 the descender of the "y" in "Press key" was cut
+     * off on hardware (PopSNES, 2026-11-16) - Galmuri14's descenders
+     * reach 2 rows below the 16px cell, likely onto the XOR focus
+     * rectangle or past the button's bottom edge. Its center is y=79.
+     * OK moved down 18 and the dialog grew 101 -> 119, inside
+     * IDD_MAINMENU's 210x154. */
+    LTEXT       "Main Menu Key:", IDC_VC_LBL_MENUKEY,     8, 75,  90, 12
+    PUSHBUTTON  "None",         IDC_VC_MENUKEY,         100, 71,  80, 16, WS_TABSTOP | BS_OWNERDRAW
+
+    DEFPUSHBUTTON "OK",  IDOK,                          70, 95, 50, 14, BS_OWNERDRAW
 END
 
 /* Custom ROM picker (see ce_fileopen.c) - replaces GetOpenFileNameW(),

@@ -1820,6 +1820,20 @@ static LRESULT CALLBACK MainMenuBtnCtrlProc(HWND hWnd, UINT message, WPARAM wPar
     if (message == WM_GETDLGCODE)
         return DLGC_WANTARROWS | DLGC_WANTALLKEYS;
 
+    /* PW-SH2 started from CeOpener sends a Space press as WM_KEYDOWN with
+     * VK code 0 plus WM_CHAR 0x20, sometimes hundreds of ms late - late
+     * enough to land on this menu after the Space main menu key opened
+     * it, where the native button took the WM_CHAR as a click on the
+     * focused button (Open ROM) (hardware log, 2026-11-14). The menu is
+     * driven by WM_KEYDOWN only (below), so neither reaches the native
+     * proc. Neither does a real VK_SPACE press/release: Space is not
+     * decide on this menu (see VK_RETURN below), and the native push
+     * button clicks itself on a Space key-up (hardware log: Open ROM
+     * opened on the WM_KEYUP once WM_CHAR was already dropped). */
+    if ((message == WM_KEYDOWN && wParam == 0) || message == WM_CHAR ||
+        ((message == WM_KEYDOWN || message == WM_KEYUP) && wParam == VK_SPACE))
+        return 0;
+
     if (message == WM_KEYDOWN)
     {
         switch (wParam)
@@ -1835,7 +1849,13 @@ static LRESULT CALLBACK MainMenuBtnCtrlProc(HWND hWnd, UINT message, WPARAM wPar
             return 0;
 
         case VK_RETURN:
-        case VK_SPACE:
+            /* Decide only. Space is not decide on this menu (it was up to
+             * v1.3.0): started from CeOpener, PW-SH2 sends a Space press
+             * as VK code 0, so Space pressed Open ROM etc. when started as
+             * an add-on app but did nothing from CeOpener. Now all Space
+             * messages are dropped above and it does nothing either way.
+             * The message/confirm dialogs (MsgBox/SaveConfirm, the
+             * state-load confirm included) still take Space as decide. */
             SendMessage(hDlg, WM_COMMAND, MAKEWPARAM(id, BN_CLICKED), (LPARAM)hWnd);
             return 0;
 
@@ -2040,6 +2060,63 @@ static INT_PTR CALLBACK MainMenuDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPAR
     }
 }
 
+/* Main menu key (Video Config, ce_video.c's CeVideoGetMenuKey()): during
+ * play, pressing and releasing that key opens the main menu, the same as
+ * tapping the screen. It opens on release, not on press, so the held key
+ * can't reach the menu dialog (Esc would close it at once, Enter would
+ * press the focused button). After any menu closes (MenuKeyReset() at
+ * the end of ShowMainMenuDialog) the key must first be seen released
+ * before a press counts, so a menu closed with that same key (Esc/Enter)
+ * doesn't open again the moment the key comes up.
+ *
+ * The key is read with GetAsyncKeyState() once per loop pass in WinMain,
+ * the same way as the game buttons (ce_input.c) - real hardware
+ * (PW-G5300) reads Back (Esc) and Previous this way during play. A game
+ * button bound to the same key is ignored (ce_input.c's CeInputPoll),
+ * so the main menu key wins. */
+static int s_menuKeyArmed   = 0; /* seen released since the last reset */
+static int s_menuKeyWasDown = 0; /* pressed since armed / since the last reset */
+
+static void MenuKeyReset(void)
+{
+    s_menuKeyArmed   = 0;
+    s_menuKeyWasDown = 0;
+}
+
+/* Returns 1 once when the main menu key has just been released after a
+ * press that came after it was seen released. */
+static int MenuKeyPollReleased(void)
+{
+    int vk = CeVideoGetMenuKey();
+    int down;
+
+    if (vk == 0)
+    {
+        MenuKeyReset();
+        return 0;
+    }
+
+    down = (GetAsyncKeyState(vk) & 0x8000) ? 1 : 0;
+    if (down)
+    {
+        if (s_menuKeyArmed && !s_menuKeyWasDown)
+        {
+            s_menuKeyWasDown = 1;
+            CeLog("MenuKey: vk=0x%02X down", (unsigned)vk);
+        }
+        return 0;
+    }
+
+    if (s_menuKeyArmed && s_menuKeyWasDown)
+    {
+        s_menuKeyWasDown = 0;
+        CeLog("MenuKey: vk=0x%02X released - opening main menu", (unsigned)vk);
+        return 1;
+    }
+    s_menuKeyArmed = 1;
+    return 0;
+}
+
 /* Pauses (if a game is running), shows the menu dialog modally (blocks
  * until closed), then resumes if a game is loaded when it returns -
  * whether that's the game that was already running, or one just picked
@@ -2099,6 +2176,10 @@ static void ShowMainMenuDialog(HWND hwnd)
          * from the menu dialog to gameplay. */
         CeHideShellChrome(hwnd);
     }
+
+    /* Whatever closed the menu (tap, Esc, Enter, the main menu key
+     * itself), the main menu key has to be seen released again first. */
+    MenuKeyReset();
 }
 
 /* ------------------------------------------------------------------ */
@@ -2319,6 +2400,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLin
              * this tick. Sleep instead of spinning the message pump at
              * 100% CPU for no reason. */
             Sleep(10);
+            continue;
+        }
+
+        /* Main menu key - opened here, outside
+         * retro_run(), the same place a tap's WM_LBUTTONDOWN is
+         * dispatched from (the PeekMessageW loop above). */
+        if (MenuKeyPollReleased())
+        {
+            ShowMainMenuDialog(g_hwnd);
             continue;
         }
 

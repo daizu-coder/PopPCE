@@ -39,6 +39,11 @@ void CeShowVideoConfigDialog(HWND owner);
 /* Consulted directly by ce_display.c's CeDisplayBlitRGB565 every frame. */
 CeScaleMode CeVideoGetScaleMode(void);
 
+/* Video Config's main menu key: the VK code of the key that opens the
+ * main menu during play (ce_main.c), 0 = none (the default). Saved as
+ * "VideoMenuKey". */
+int CeVideoGetMenuKey(void);
+
 /* ce_main.c's ce_environment() calls this for RETRO_ENVIRONMENT_GET_VARIABLE:
  * if key is one this module owns (pce_frameskip), fills *outValue
  * with a string valid until the next call and returns 1; otherwise

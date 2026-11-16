@@ -19,8 +19,10 @@
 #include "ce_lang.h"
 #include "ce_bmpfont.h"
 #include "ce_resource.h"
+#include "ce_input.h"
 
 #include <string.h>
+#include <wchar.h>
 
 static CeScaleMode s_scaleMode  = CE_SCALE_EXPAND; /* matches pre-Video-Config behaviour (always stretch-to-fill) */
 /* PopPCE: the template's "No Sprite Limit" checkbox is removed - the
@@ -39,6 +41,11 @@ static CeScaleMode s_scaleMode  = CE_SCALE_EXPAND; /* matches pre-Video-Config b
 static int         s_frameSkip  = 2;
 static int         s_frameSkipConsecutive = 0; /* frames skipped in a row since the last real render - see CeVideoFrameSkipShouldForceRender/NotifyRendered */
 static int         s_debugLog   = 0;           /* "Enable Debug Logging" checkbox - default off; drives CeLogSetEnabled() (see ce_log.h) */
+/* Main menu key: VK code of a key that opens the main menu during play,
+ * the same as tapping the screen (ce_main.c's WinMain loop opens it when
+ * the key is released). 0 = none, the default. Takes priority over an
+ * Input Config button bound to the same key (ce_input.c's CeInputPoll). */
+static int         s_menuKey    = 0;
 
 static int s_dirty = 0; /* consumed by CeVideoConsumeDirty() - see ce_video.h */
 
@@ -61,10 +68,13 @@ void CeVideoInit(void)
     }
     s_frameSkip     = CeConfigGetInt("VideoFrameSkip", s_frameSkip);
     s_debugLog      = CeConfigGetInt("VideoDebugLog", s_debugLog);
+    s_menuKey       = CeConfigGetInt("VideoMenuKey", s_menuKey);
+    if (s_menuKey < 0 || s_menuKey > 0xFF)
+        s_menuKey = 0; /* not a VK code - treat as none */
     CeLogSetEnabled(s_debugLog); /* WinMain already did this right after CeConfigLoad(); keep the two in sync */
 
-    CeLog("CeVideoInit: loaded scaleMode=%d frameSkip=%d debugLog=%d from config file",
-          (int)s_scaleMode, s_frameSkip, s_debugLog);
+    CeLog("CeVideoInit: loaded scaleMode=%d frameSkip=%d debugLog=%d menuKey=0x%02X from config file",
+          (int)s_scaleMode, s_frameSkip, s_debugLog, (unsigned)s_menuKey);
 }
 
 /* Registry-based persistence (samDesired/RegFlushKey lessons of the sister
@@ -76,19 +86,25 @@ static void CeVideoSaveConfig(void)
     CeConfigSetInt("VideoScaleMode", (int)s_scaleMode);
     CeConfigSetInt("VideoFrameSkip", s_frameSkip);
     CeConfigSetInt("VideoDebugLog", s_debugLog);
+    CeConfigSetInt("VideoMenuKey", s_menuKey);
     CeConfigSave();
 
     /* Apply the new logging state immediately (before the CeLog() below,
      * so turning it *on* captures this line too). */
     CeLogSetEnabled(s_debugLog);
 
-    CeLog("CeVideoSaveConfig: saved scaleMode=%d frameSkip=%d debugLog=%d",
-          (int)s_scaleMode, s_frameSkip, s_debugLog);
+    CeLog("CeVideoSaveConfig: saved scaleMode=%d frameSkip=%d debugLog=%d menuKey=0x%02X",
+          (int)s_scaleMode, s_frameSkip, s_debugLog, (unsigned)s_menuKey);
 }
 
 CeScaleMode CeVideoGetScaleMode(void)
 {
     return s_scaleMode;
+}
+
+int CeVideoGetMenuKey(void)
+{
+    return s_menuKey;
 }
 
 /* Core options the PC Engine adapter (CE/core/pce_core_ce.c) asks for. Only
@@ -267,6 +283,99 @@ static LRESULT CALLBACK FrameSkipButtonSubclassProc(HWND hwnd, UINT msg, WPARAM 
     return CallWindowProc(s_origFrameSkipBtnProc, hwnd, msg, wParam, lParam);
 }
 
+/* Main menu key button (IDC_VC_MENUKEY). Pressing it (tap or decide)
+ * waits for a key the same way an Input Config remap button does (see
+ * ce_input.c's InputBtnCtrlProc): while waiting, the next WM_KEYDOWN of
+ * any key - Back (Esc), decide (Enter) and Previous included - becomes
+ * the main menu key, ahead of this dialog's own navigation and close
+ * keys. Unlike Input Config, the wait times out: the button counts down
+ * "Press key (5)" ... "(1)" once a second and sets the key to none when
+ * it reaches 0. Pressing the button again or closing the dialog while
+ * waiting cancels and keeps the previous key. The timer lives on the
+ * dialog window (FRAMESKIP_REPEAT_TIMER_ID is on the -/+ buttons). */
+#define MENUKEY_TIMER_ID       2
+#define MENUKEY_TIMEOUT_SEC    5
+
+static int s_menuKeyWaiting   = 0; /* 1 while the button waits for a key */
+static int s_menuKeySecsLeft  = 0;
+
+/* The key just captured, until its WM_KEYUP arrives. The rest of that
+ * key press must not reach the native BUTTON control afterwards. Space
+ * in particular: a push button treats a Space key-up (or its WM_CHAR) as
+ * a click, so without this the captured Space came back as BN_CLICKED on
+ * IDC_VC_MENUKEY - which, no longer waiting, started a new wait ("Press
+ * key (5)" again) instead of showing "Space" (PW-SH2/SH5 have a Space
+ * key). Auto-repeat WM_KEYDOWNs of the same key are dropped too.
+ *
+ * PW-SH2 started from CeOpener (800x480) sends a Space press as a
+ * WM_KEYDOWN with VK code 0 (scan code 0) plus WM_CHAR 0x20 - sometimes
+ * hundreds of ms late - while its WM_KEYUP still carries VK_SPACE
+ * (hardware log, 2026-11-14). So while waiting, a VK-0 WM_KEYDOWN is not
+ * a key: it only sets s_menuKeyVk0Down, and the next WM_KEYUP with a real
+ * VK code is captured instead. WM_CHAR never reaches IDC_VC_MENUKEY's
+ * native proc, and for MENUKEY_IGNORE_MS after any key capture a late
+ * VK-0 WM_KEYDOWN and BN_CLICKED on IDC_VC_MENUKEY are ignored. */
+static int   s_menuKeySwallowVk   = 0;
+static int   s_menuKeyVk0Down     = 0; /* a VK-0 WM_KEYDOWN arrived during this wait */
+static int   s_menuKeyCaptured    = 0; /* a key was captured since the dialog opened */
+static DWORD s_menuKeyCaptureTick = 0; /* when (valid while s_menuKeyCaptured) */
+#define MENUKEY_IGNORE_MS  1000
+
+static int MenuKeyJustCaptured(void)
+{
+    return s_menuKeyCaptured && GetTickCount() - s_menuKeyCaptureTick < MENUKEY_IGNORE_MS;
+}
+
+static void UpdateMenuKeyLabel(HWND hDlg)
+{
+    wchar_t text[32];
+
+    if (s_menuKeyWaiting)
+        _snwprintf(text, 32, L"Press key (%d)", s_menuKeySecsLeft);
+    else
+        wcsncpy(text, CeInputVkLabel(s_menuKey), 32);
+    text[31] = L'\0';
+    SetWindowTextW(GetDlgItem(hDlg, IDC_VC_MENUKEY), text);
+}
+
+static void BeginMenuKeyWait(HWND hDlg)
+{
+    s_menuKeyWaiting  = 1;
+    s_menuKeyVk0Down  = 0;
+    s_menuKeySecsLeft = MENUKEY_TIMEOUT_SEC;
+    SetTimer(hDlg, MENUKEY_TIMER_ID, 1000, NULL);
+    UpdateMenuKeyLabel(hDlg);
+    CeLog("VideoConfig: menu key wait started (current 0x%02X)", (unsigned)s_menuKey);
+}
+
+/* Ends the wait without changing s_menuKey (cancel, or after the caller
+ * has already stored the new key). */
+static void EndMenuKeyWait(HWND hDlg)
+{
+    if (!s_menuKeyWaiting)
+        return;
+    KillTimer(hDlg, MENUKEY_TIMER_ID);
+    s_menuKeyWaiting = 0;
+    UpdateMenuKeyLabel(hDlg);
+}
+
+/* vk = 0 is the 5-second time-out. keyIsUp: captured from the WM_KEYUP
+ * (the CeOpener case above), so there is no key-up left to swallow. */
+static void CaptureMenuKey(HWND hDlg, int vk, int keyIsUp)
+{
+    if (vk != 0)
+    {
+        /* Captured from a key press (not the time-out) - see
+         * s_menuKeySwallowVk. */
+        s_menuKeySwallowVk   = keyIsUp ? 0 : vk;
+        s_menuKeyCaptured    = 1;
+        s_menuKeyCaptureTick = GetTickCount();
+    }
+    s_menuKey = vk;
+    CeLog("VideoConfig: menu key set to 0x%02X%s", (unsigned)vk, keyIsUp ? " (from key-up)" : "");
+    EndMenuKeyWait(hDlg);
+}
+
 static void  RefreshVideoConfigLanguage(HWND hDlg);
 static void  ToggleLanguage(HWND hDlg);
 
@@ -290,7 +399,8 @@ static int VideoNeighborDown(int id)
     case IDC_VC_SCALE_VALUE:       return IDC_VC_FRAMESKIP_LABEL;
     case IDC_VC_FRAMESKIP_LABEL:   return IDC_VC_JAPANESE;
     case IDC_VC_JAPANESE:          return IDC_VC_DEBUGLOG;
-    case IDC_VC_DEBUGLOG:          return IDOK;
+    case IDC_VC_DEBUGLOG:          return IDC_VC_MENUKEY;
+    case IDC_VC_MENUKEY:           return IDOK;
     case IDOK:                     return IDC_VC_SCALE_VALUE;
     }
     return id;
@@ -304,7 +414,8 @@ static int VideoNeighborUp(int id)
     case IDC_VC_FRAMESKIP_LABEL:   return IDC_VC_SCALE_VALUE;
     case IDC_VC_JAPANESE:          return IDC_VC_FRAMESKIP_LABEL;
     case IDC_VC_DEBUGLOG:          return IDC_VC_JAPANESE;
-    case IDOK:                     return IDC_VC_DEBUGLOG;
+    case IDC_VC_MENUKEY:           return IDC_VC_DEBUGLOG;
+    case IDOK:                     return IDC_VC_MENUKEY;
     }
     return id;
 }
@@ -327,8 +438,55 @@ static LRESULT CALLBACK VideoCtrlProc(HWND hWnd, UINT message, WPARAM wParam, LP
     {
         return DLGC_WANTARROWS | DLGC_WANTALLKEYS;
     }
-    else if (message == WM_KEYDOWN)
+
+    /* The rest of the key press that was just captured as the main menu
+     * key, and the CeOpener VK-0 press - see s_menuKeySwallowVk. */
+    if (message == WM_CHAR &&
+        (id == IDC_VC_MENUKEY || s_menuKeyWaiting || s_menuKeySwallowVk != 0 || MenuKeyJustCaptured()))
+        return 0;
+    if (s_menuKeySwallowVk != 0)
     {
+        if (message == WM_KEYUP && (int)wParam == s_menuKeySwallowVk)
+        {
+            s_menuKeySwallowVk = 0;
+            return 0;
+        }
+        if (message == WM_KEYDOWN && (int)wParam == s_menuKeySwallowVk && !s_menuKeyWaiting)
+            return 0; /* auto-repeat */
+    }
+    if (message == WM_KEYDOWN && wParam == 0 && !s_menuKeyWaiting && MenuKeyJustCaptured())
+        return 0; /* the late CeOpener VK-0 press of the key just captured */
+
+    if (s_menuKeyWaiting && message == WM_KEYUP && s_menuKeyVk0Down && wParam != 0)
+    {
+        /* CeOpener: the press came as VK 0, the release has the real key. */
+        CaptureMenuKey(GetParent(hWnd), (int)wParam, 1);
+        if (id != IDC_VC_MENUKEY)
+            SetFocus(GetDlgItem(GetParent(hWnd), IDC_VC_MENUKEY));
+        return 0;
+    }
+
+    if (message == WM_KEYDOWN)
+    {
+        /* Waiting for the main menu key: any key at all is the new key,
+         * before navigation and Back/decide - same priority as Input
+         * Config's InputBtnCtrlProc. Checked on every subclassed control,
+         * not only IDC_VC_MENUKEY, so a key can't close the dialog or move
+         * on while the countdown is showing even if focus went elsewhere. */
+        if (s_menuKeyWaiting)
+        {
+            if (wParam == 0)
+            {
+                /* Not a key - wait for its WM_KEYUP (see above). */
+                s_menuKeyVk0Down = 1;
+                return 0;
+            }
+            CaptureMenuKey(GetParent(hWnd), (int)wParam, 0);
+            if (id != IDC_VC_MENUKEY)
+                SetFocus(GetDlgItem(GetParent(hWnd), IDC_VC_MENUKEY));
+            return 0;
+        }
+
         switch (wParam)
         {
         case VK_UP:
@@ -381,6 +539,12 @@ static LRESULT CALLBACK VideoCtrlProc(HWND hWnd, UINT message, WPARAM wParam, LP
                 s_debugLog = !s_debugLog;
                 InvalidateRect(hWnd, NULL, TRUE);
             }
+            else if (id == IDC_VC_MENUKEY)
+            {
+                /* Not waiting (handled above) - decide starts the wait,
+                 * the same as a tap (see WM_COMMAND below). */
+                BeginMenuKeyWait(GetParent(hWnd));
+            }
             else if (id == IDOK)
             {
                 /* IDOK is subclassed too now (for the Up/Down wrap), so
@@ -414,7 +578,7 @@ static LRESULT CALLBACK VideoCtrlProc(HWND hWnd, UINT message, WPARAM wParam, LP
  * CeBmpFontDrawOwnerCheckbox() instead (see VideoConfigDlgProc's
  * WM_DRAWITEM case below). */
 static const int kVideoLabelIds[] = {
-    IDC_VC_LBL_SCALE, IDC_VC_LBL_FRAMESKIP,
+    IDC_VC_LBL_SCALE, IDC_VC_LBL_FRAMESKIP, IDC_VC_LBL_MENUKEY,
 };
 #define CE_VIDEO_LABEL_COUNT (sizeof(kVideoLabelIds) / sizeof(kVideoLabelIds[0]))
 
@@ -432,12 +596,14 @@ static void ApplyVideoConfigLanguage(HWND hDlg)
     {
         SetDlgItemTextW(hDlg, IDC_VC_LBL_FRAMESKIP,  L"\x30d5\x30ec\x30fc\x30e0\x30b9\x30ad\x30c3\x30d7\x3a"); /* フレームスキップ: */
         SetDlgItemTextW(hDlg, IDC_VC_DEBUGLOG,       L"\x30c7\x30d0\x30c3\x30b0\x30ed\x30b0\x3092\x6709\x52b9\x306b\x3059\x308b"); /* デバッグログを有効にする */
+        SetDlgItemTextW(hDlg, IDC_VC_LBL_MENUKEY,    L"\x30e1\x30a4\x30f3\x30e1\x30cb\x30e5\x30fc\x30ad\x30fc\x3a"); /* メインメニューキー: */
         SetDlgItemTextW(hDlg, IDOK,     L"\x6c7a\x5b9a");                            /* 決定 */
     }
     else
     {
         SetDlgItemTextW(hDlg, IDC_VC_LBL_FRAMESKIP,  L"Frame Skip:");
         SetDlgItemTextW(hDlg, IDC_VC_DEBUGLOG,       L"Enable Debug Logging");
+        SetDlgItemTextW(hDlg, IDC_VC_LBL_MENUKEY,    L"Main Menu Key:");
         SetDlgItemTextW(hDlg, IDOK,     L"OK");
     }
 
@@ -483,6 +649,11 @@ static INT_PTR CALLBACK VideoConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
          * added. */
         UpdateScaleLabel(hDlg);
         UpdateFrameSkipLabel(hDlg);
+        s_menuKeyWaiting   = 0;
+        s_menuKeySwallowVk = 0;
+        s_menuKeyVk0Down   = 0;
+        s_menuKeyCaptured  = 0;
+        UpdateMenuKeyLabel(hDlg);
         RefreshVideoConfigLanguage(hDlg);
 
         s_frameSkipRepeatDir = 0;
@@ -495,6 +666,7 @@ static INT_PTR CALLBACK VideoConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
         SetWindowLongPtrW(GetDlgItem(hDlg, IDC_VC_FRAMESKIP_LABEL),   GWLP_WNDPROC, (LONG_PTR)VideoCtrlProc);
         SetWindowLongPtrW(GetDlgItem(hDlg, IDC_VC_JAPANESE),          GWLP_WNDPROC, (LONG_PTR)VideoCtrlProc);
         SetWindowLongPtrW(GetDlgItem(hDlg, IDC_VC_DEBUGLOG),          GWLP_WNDPROC, (LONG_PTR)VideoCtrlProc);
+        SetWindowLongPtrW(GetDlgItem(hDlg, IDC_VC_MENUKEY),           GWLP_WNDPROC, (LONG_PTR)VideoCtrlProc);
         SetWindowLongPtrW(GetDlgItem(hDlg, IDOK),                     GWLP_WNDPROC, (LONG_PTR)VideoCtrlProc);
 
         /* Belt-and-suspenders initial focus, same pattern as every other
@@ -541,6 +713,23 @@ static INT_PTR CALLBACK VideoConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
         SetFocus(GetDlgItem(hDlg, IDC_VC_SCALE_VALUE));
         break;
 
+    case WM_TIMER:
+        if (wParam == MENUKEY_TIMER_ID && s_menuKeyWaiting)
+        {
+            if (--s_menuKeySecsLeft <= 0)
+            {
+                /* No key within 5 seconds: none. */
+                CeLog("VideoConfig: menu key wait timed out - set to none");
+                CaptureMenuKey(hDlg, 0, 0);
+            }
+            else
+            {
+                UpdateMenuKeyLabel(hDlg);
+            }
+            return TRUE;
+        }
+        break;
+
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
@@ -572,6 +761,27 @@ static INT_PTR CALLBACK VideoConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
             InvalidateRect(GetDlgItem(hDlg, IDC_VC_DEBUGLOG), NULL, TRUE);
             return TRUE;
 
+        case IDC_VC_MENUKEY:
+            /* A click that is really the key just captured (still held,
+             * shortly after) - see s_menuKeySwallowVk. */
+            if (MenuKeyJustCaptured())
+            {
+                CeLog("VideoConfig: ignored a click within %dms of capturing 0x%02X", MENUKEY_IGNORE_MS, (unsigned)s_menuKey);
+                return TRUE;
+            }
+            /* Tap: start waiting, or - if already waiting - cancel and
+             * keep the previous key (Input Config's re-tap-to-cancel). */
+            if (s_menuKeyWaiting)
+            {
+                CeLog("VideoConfig: menu key wait cancelled - kept 0x%02X", (unsigned)s_menuKey);
+                EndMenuKeyWait(hDlg);
+            }
+            else
+            {
+                BeginMenuKeyWait(hDlg);
+            }
+            return TRUE;
+
         case IDC_VC_FRAMESKIP_DOWN:
             if (s_frameSkip > 0)
                 s_frameSkip--;
@@ -593,6 +803,9 @@ static INT_PTR CALLBACK VideoConfigDlgProc(HWND hDlg, UINT msg, WPARAM wParam, L
              * prototype). Scale mode is already applied
              * live (ce_display.c reads it straight from module state); this just persists everything to disk and
              * pokes the core to re-poll its two options. */
+            /* Closing while the main menu key countdown is showing
+             * cancels it and keeps the previous key. */
+            EndMenuKeyWait(hDlg);
             CeVideoSaveConfig();
             s_dirty = 1;
             EndDialog(hDlg, LOWORD(wParam));

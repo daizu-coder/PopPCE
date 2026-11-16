@@ -73,4 +73,9 @@ int CeInputEnvGetVariable(const char *key, const char **outValue);
  * once after Input Config changed the pad type. */
 int CeInputConsumeDirty(void);
 
+/* The name Input Config shows for a VK code ("Esc", "Previous", "None"
+ * for 0, "VK_xx" for an unnamed key). The returned string may be a
+ * shared static buffer - copy it before calling again. */
+const wchar_t *CeInputVkLabel(int vk);
+
 #endif
